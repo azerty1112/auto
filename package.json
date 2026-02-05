@@ -1,0 +1,11 @@
+{
+  "name": "auuto",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "node main.js"
+  },
+  "dependencies": {
+    "electron": "^40.1.0",
+    "robotjs": "^0.6.0"
+  }
+}
