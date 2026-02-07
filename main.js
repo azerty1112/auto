@@ -1,4 +1,10 @@
-const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const electron = require('electron');
+if (typeof electron === 'string' || !electron || !electron.ipcMain) {
+  console.error('This script must be run with Electron. Try: npx electron .');
+  process.exit(1);
+}
+
+const { app, BrowserWindow, ipcMain, dialog } = electron;
 const path = require('path');
 let robot;
 let mainWindow;
