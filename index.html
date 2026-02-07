@@ -45,7 +45,9 @@
       color: var(--text);
     }
     #sidebar {
-      width: 460px;
+      width: 50%;
+      min-width: 520px;
+      max-width: 900px;
       background: linear-gradient(180deg, rgba(15,23,42,0.98), rgba(2,6,23,0.98));
       padding: 20px;
       height: 100vh;
@@ -56,7 +58,7 @@
     body.theme-light #sidebar {
       background: linear-gradient(180deg, rgba(248,250,252,0.98), rgba(241,245,249,0.98));
     }
-    #content { flex:1; background: var(--bg); }
+    #content { flex:1; background: var(--bg); min-width: 0; }
     .panel-header {
       display:flex;
       align-items:center;
@@ -281,6 +283,43 @@
       border: 1px solid var(--card-border);
     }
     .list-item small { color: var(--muted); }
+    .panel-note {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 6px;
+    }
+    .selector-output {
+      font-family: "Cairo", "Segoe UI", Arial, sans-serif;
+      font-size: 12px;
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px dashed var(--card-border);
+      padding: 8px;
+      border-radius: 10px;
+      word-break: break-all;
+    }
+    .pill {
+      display:inline-flex;
+      align-items:center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(56,189,248,0.15);
+      color: var(--accent);
+      font-size: 11px;
+    }
+    .split-actions {
+      display:flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .url-row {
+      display:flex;
+      gap: 8px;
+      align-items:center;
+    }
+    .url-row input {
+      flex: 1;
+    }
   </style>
 </head>
 <body>
@@ -325,6 +364,42 @@
           <span class="chip">مدة متوقعة: <strong id="statEta">-</strong></span>
           <span class="chip">معدل نجاح: <strong id="statSuccess">100%</strong></span>
           <span class="chip">المتوسط/إجراء: <strong id="statDelay">0ms</strong></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" data-collapsible>
+      <div class="collapse-toggle">
+        <h2>مركز المتصفح والماكرو</h2>
+        <button class="ghost" onclick="toggleCard(this)">طي/فتح</button>
+      </div>
+      <div class="card-body">
+        <label>رابط الموقع المراد فتحه</label>
+        <div class="url-row">
+          <input id="targetUrl" placeholder="https://example.com أو example.com">
+          <button class="primary" onclick="openTargetUrl()">فتح</button>
+        </div>
+        <div class="split-actions">
+          <button class="ghost" onclick="navigateBack()">رجوع</button>
+          <button class="ghost" onclick="navigateForward()">تقدم</button>
+          <button class="ghost" onclick="reloadTarget()">إعادة تحميل</button>
+          <button class="ghost" onclick="stopTarget()">إيقاف التحميل</button>
+        </div>
+        <div class="divider-light"></div>
+        <div class="split-actions">
+          <button class="primary" onclick="pickSelector()">التقاط Selector</button>
+          <button onclick="startMacroRecording()">بدء تسجيل ماكرو</button>
+          <button class="ghost" onclick="stopMacroRecording()">إيقاف التسجيل</button>
+        </div>
+        <div class="panel-note">استخدم الالتقاط لتحديد العناصر داخل الموقع وإرسالها مباشرةً إلى الحافظة.</div>
+        <div class="divider-light"></div>
+        <div class="inline">
+          <span class="pill">آخر Selector:</span>
+          <span id="lastSelector" class="selector-output">-</span>
+        </div>
+        <div class="inline" style="margin-top:8px;">
+          <span class="pill">حالة التسجيل:</span>
+          <span id="macroStatus" class="selector-output">غير نشط</span>
         </div>
       </div>
     </div>
@@ -483,7 +558,6 @@
       </div>
     </div>
   </div>
-  </div>
 
   <div id="content">
     <webview id="browser" src="about:blank" sandbox="allow-scripts allow-same-origin" partition="persist:automation" style="width:100%;height:100vh;"></webview>
@@ -505,8 +579,12 @@
     const actionFilter = document.getElementById('actionFilter');
     const quietMode = document.getElementById('quietMode');
     const statusChip = document.getElementById('runStatus');
+    const macroStatus = document.getElementById('macroStatus');
+    const lastSelectorEl = document.getElementById('lastSelector');
+    const targetUrlInput = document.getElementById('targetUrl');
     const theme = localStorage.theme || 'dark';
     document.body.classList.toggle('theme-light', theme === 'light');
+    let isMacroRecording = false;
 
     // تحميل من localStorage
     if (localStorage.workflow) workflow = JSON.parse(localStorage.workflow);
@@ -542,6 +620,210 @@
       p.textContent = new Date().toLocaleTimeString() + ' | ' + msg;
       document.getElementById('log').appendChild(p);
       document.getElementById('log').scrollTop = document.getElementById('log').scrollHeight;
+    }
+
+    function normalizeUrl(value) {
+      if (!value) return '';
+      return /^https?:\/\//i.test(value) ? value : `https://${value}`;
+    }
+
+    function openTargetUrl() {
+      const url = normalizeUrl(targetUrlInput.value.trim());
+      if (!url) return;
+      webview.loadURL(url);
+      logMsg(`تم فتح الرابط: ${url}`);
+    }
+
+    function reloadTarget() {
+      webview.reload();
+    }
+
+    function stopTarget() {
+      webview.stop();
+    }
+
+    function navigateBack() {
+      if (webview.canGoBack()) {
+        webview.goBack();
+      }
+    }
+
+    function navigateForward() {
+      if (webview.canGoForward()) {
+        webview.goForward();
+      }
+    }
+
+    function setMacroStatus(text) {
+      macroStatus.textContent = text;
+    }
+
+    function setLastSelector(value) {
+      lastSelectorEl.textContent = value || '-';
+    }
+
+    async function pickSelector() {
+      try {
+        setMacroStatus('التقاط Selector نشط');
+        const selector = await webview.executeJavaScript(`(() => new Promise((resolve) => {
+          const existing = window.__selectorPickerActive;
+          if (existing) return resolve(window.__lastSelector || '');
+          window.__selectorPickerActive = true;
+          const overlay = document.createElement('div');
+          overlay.style.position = 'fixed';
+          overlay.style.border = '2px dashed #38bdf8';
+          overlay.style.zIndex = '2147483647';
+          overlay.style.pointerEvents = 'none';
+          document.body.appendChild(overlay);
+
+          const cssPath = (el) => {
+            if (!el || el.nodeType !== 1) return '';
+            if (el.id) return '#' + CSS.escape(el.id);
+            const parts = [];
+            let element = el;
+            while (element && parts.length < 4 && element.nodeType === 1) {
+              let selector = element.nodeName.toLowerCase();
+              if (element.classList.length) {
+                selector += '.' + [...element.classList].slice(0, 2).map(c => CSS.escape(c)).join('.');
+              }
+              const parent = element.parentElement;
+              if (parent) {
+                const siblings = [...parent.children].filter(child => child.nodeName === element.nodeName);
+                if (siblings.length > 1) {
+                  selector += `:nth-of-type(${siblings.indexOf(element) + 1})`;
+                }
+              }
+              parts.unshift(selector);
+              element = element.parentElement;
+            }
+            return parts.join(' > ');
+          };
+
+          const onHover = (e) => {
+            const rect = e.target.getBoundingClientRect();
+            overlay.style.top = rect.top + 'px';
+            overlay.style.left = rect.left + 'px';
+            overlay.style.width = rect.width + 'px';
+            overlay.style.height = rect.height + 'px';
+          };
+
+          const onClick = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const selector = cssPath(e.target);
+            window.__lastSelector = selector;
+            cleanup();
+            resolve(selector);
+          };
+
+          const cleanup = () => {
+            window.__selectorPickerActive = false;
+            document.removeEventListener('mouseover', onHover, true);
+            document.removeEventListener('click', onClick, true);
+            overlay.remove();
+          };
+
+          document.addEventListener('mouseover', onHover, true);
+          document.addEventListener('click', onClick, true);
+        }))()`, true);
+        if (selector) {
+          setLastSelector(selector);
+          navigator.clipboard?.writeText(selector);
+          logMsg(`تم التقاط Selector: ${selector}`);
+        } else {
+          setLastSelector('-');
+          logMsg('لم يتم التقاط Selector');
+        }
+      } catch (error) {
+        logMsg('تعذر تشغيل أداة الالتقاط');
+      } finally {
+        setMacroStatus(isMacroRecording ? 'تسجيل ماكرو نشط' : 'غير نشط');
+      }
+    }
+
+    async function startMacroRecording() {
+      if (isMacroRecording) return;
+      isMacroRecording = true;
+      setMacroStatus('تسجيل ماكرو نشط');
+      try {
+        await webview.executeJavaScript(`(() => {
+          if (window.__macroRecording) return;
+          window.__macroRecording = true;
+          window.__macroEvents = [];
+          const cssPath = (el) => {
+            if (!el || el.nodeType !== 1) return '';
+            if (el.id) return '#' + CSS.escape(el.id);
+            const parts = [];
+            let element = el;
+            while (element && parts.length < 4 && element.nodeType === 1) {
+              let selector = element.nodeName.toLowerCase();
+              if (element.classList.length) {
+                selector += '.' + [...element.classList].slice(0, 2).map(c => CSS.escape(c)).join('.');
+              }
+              const parent = element.parentElement;
+              if (parent) {
+                const siblings = [...parent.children].filter(child => child.nodeName === element.nodeName);
+                if (siblings.length > 1) {
+                  selector += `:nth-of-type(${siblings.indexOf(element) + 1})`;
+                }
+              }
+              parts.unshift(selector);
+              element = element.parentElement;
+            }
+            return parts.join(' > ');
+          };
+
+          window.__macroHandlers = {
+            click: (e) => {
+              window.__macroEvents.push({ type: 'click', selector: cssPath(e.target), ts: Date.now() });
+            },
+            input: (e) => {
+              window.__macroEvents.push({ type: 'fill', selector: cssPath(e.target), value: e.target.value || '', ts: Date.now() });
+            }
+          };
+          document.addEventListener('click', window.__macroHandlers.click, true);
+          document.addEventListener('input', window.__macroHandlers.input, true);
+        })()`, true);
+        logMsg('تم بدء تسجيل الماكرو من المتصفح');
+      } catch (error) {
+        isMacroRecording = false;
+        setMacroStatus('غير نشط');
+        logMsg('تعذر بدء تسجيل الماكرو');
+      }
+    }
+
+    async function stopMacroRecording() {
+      if (!isMacroRecording) return;
+      isMacroRecording = false;
+      setMacroStatus('غير نشط');
+      try {
+        const events = await webview.executeJavaScript(`(() => {
+          const events = window.__macroEvents || [];
+          if (window.__macroHandlers) {
+            document.removeEventListener('click', window.__macroHandlers.click, true);
+            document.removeEventListener('input', window.__macroHandlers.input, true);
+          }
+          window.__macroRecording = false;
+          return events;
+        })()`, true);
+        if (Array.isArray(events) && events.length) {
+          events.forEach(event => {
+            if (event.type === 'click') {
+              workflow.push({ type: 'click', selector: event.selector });
+            }
+            if (event.type === 'fill') {
+              workflow.push({ type: 'fill', selector: event.selector, value: event.value });
+            }
+          });
+          renderWorkflow();
+          saveAll();
+          logMsg(`تم إضافة ${events.length} خطوة من الماكرو`);
+        } else {
+          logMsg('لم يتم تسجيل خطوات داخل الماكرو');
+        }
+      } catch (error) {
+        logMsg('تعذر إنهاء تسجيل الماكرو');
+      }
     }
 
     function maybeAutoSave() {
@@ -620,19 +902,24 @@
 
     function parseData() {
       const text = document.getElementById('dataJSON').value.trim();
-      if (!text) {
+      try {
+        if (!text) {
+          data = [];
+        } else if (text.startsWith('[') || text.startsWith('{')) {
+          data = JSON.parse(text);
+        } else {
+          const lines = text.split('\n').filter(l => l.trim());
+          const headers = lines[0].split(',').map(h => h.trim());
+          data = lines.slice(1).map(l => {
+            const vals = l.split(',').map(v => v.trim());
+            let obj = {};
+            headers.forEach((h, i) => obj[h] = vals[i] || '');
+            return obj;
+          });
+        }
+      } catch (error) {
+        logMsg('تعذر تحليل البيانات. تحقق من التنسيق.');
         data = [];
-      } else if (text.startsWith('[') || text.startsWith('{')) {
-        data = JSON.parse(text);
-      } else {
-        const lines = text.split('\n').filter(l => l.trim());
-        const headers = lines[0].split(',').map(h => h.trim());
-        data = lines.slice(1).map(l => {
-          const vals = l.split(',').map(v => v.trim());
-          let obj = {};
-          headers.forEach((h, i) => obj[h] = vals[i] || '');
-          return obj;
-        });
       }
       document.getElementById('dataCount').textContent = data.length;
       saveAll();
@@ -967,6 +1254,15 @@
     }
 
     // باقي الدوال (execute, recording, picker...) مطورة لتدعم كل الميزات الجديدة.
+    webview.addEventListener('did-navigate', (event) => {
+      targetUrlInput.value = event.url;
+    });
+
+    webview.addEventListener('did-navigate-in-page', (event) => {
+      if (event.isMainFrame) {
+        targetUrlInput.value = event.url;
+      }
+    });
 
     document.getElementById('logFilter').addEventListener('input', filterLog);
     document.getElementById('workflowName').addEventListener('input', saveAll);

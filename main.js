@@ -1,32 +1,41 @@
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
-let robot; 
-try { robot = require('robotjs'); } catch(e) { robot = null; }
+let robot;
+let mainWindow;
+try {
+  robot = require('robotjs');
+} catch (e) {
+  robot = null;
+}
 
 function createWindow() {
-  const win = new BrowserWindow({
+  mainWindow = new BrowserWindow({
     width: 1600,
     height: 1000,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
-      nodeIntegration: false
+      nodeIntegration: false,
+      webviewTag: true
     }
   });
 
-  win.loadFile('index.html');
+  mainWindow.loadFile('index.html');
 }
 
 ipcMain.handle('set-proxy', async (event, proxy) => {
-  win.webContents.session.setProxy({ proxyRules: proxy || '' });
+  if (!mainWindow) return;
+  mainWindow.webContents.session.setProxy({ proxyRules: proxy || '' });
 });
 
 ipcMain.handle('set-user-agent', async (event, ua) => {
-  win.webContents.setUserAgent(ua);
+  if (!mainWindow) return;
+  mainWindow.webContents.setUserAgent(ua);
 });
 
 ipcMain.handle('capture-screenshot', async () => {
-  const image = await win.webContents.capturePage();
+  if (!mainWindow) return;
+  const image = await mainWindow.webContents.capturePage();
   const { filePath } = await dialog.showSaveDialog({ filters: [{ name: 'PNG', extensions: ['png'] }] });
   if (filePath) require('fs').writeFileSync(filePath, image.toPNG());
 });
