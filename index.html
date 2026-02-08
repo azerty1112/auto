@@ -320,6 +320,51 @@
     .url-row input {
       flex: 1;
     }
+    .feature-card {
+      padding: 12px;
+      border-radius: 12px;
+      border: 1px solid var(--card-border);
+      background: var(--panel-light);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .feature-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      align-items: center;
+    }
+    .feature-tags {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .feature-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .feature-actions button {
+      font-size: 12px;
+    }
+    .feature-meta {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .feature-meta strong {
+      color: var(--text);
+    }
+    .feature-controls {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
   </style>
 </head>
 <body>
@@ -457,6 +502,34 @@
       </div>
       <div class="card-body">
         <p class="subtle">قم برفع بيانات ديناميكية لتغذية الإجراءات المتكررة.</p>
+        <div class="inline">
+          <div style="flex:1; min-width: 160px;">
+            <label>بداية الحلقة</label>
+            <input id="loopStartIndex" type="number" min="0" value="0">
+          </div>
+          <div style="flex:1; min-width: 160px;">
+            <label>عدد العناصر</label>
+            <input id="loopMaxItems" type="number" min="0" placeholder="اتركه فارغاً للجميع">
+          </div>
+          <div style="flex:1; min-width: 160px;">
+            <label>نمط التنفيذ</label>
+            <select id="loopMode">
+              <option value="sequential">متسلسل</option>
+              <option value="random">عشوائي</option>
+              <option value="reverse">عكسي</option>
+            </select>
+          </div>
+        </div>
+        <div class="inline">
+          <label class="inline"><input type="checkbox" id="loopShuffle"> خلط النتائج قبل التنفيذ</label>
+          <label class="inline"><input type="checkbox" id="loopSkipErrors"> تجاوز السطر عند الخطأ</label>
+          <label class="inline"><input type="checkbox" id="loopAutoDetect"> كشف تلقائي لرؤوس CSV</label>
+        </div>
+        <div class="toolbar">
+          <button class="ghost" onclick="insertSampleData('json')">إدخال مثال JSON</button>
+          <button class="ghost" onclick="insertSampleData('csv')">إدخال مثال CSV</button>
+          <button class="ghost" onclick="validateData()">تحقق من البيانات</button>
+        </div>
         <textarea id="dataJSON" rows="8" placeholder='[{"name":"أحمد","email":"a@example.com"}]\nname,email\nأحمد,a@example.com'></textarea>
         <div class="toolbar">
           <button class="primary" onclick="parseData()">تحليل</button>
@@ -464,6 +537,7 @@
           <button class="ghost" onclick="clearData()">مسح البيانات</button>
         </div>
         <p class="muted">صفوف: <span id="dataCount">0</span></p>
+        <p class="muted">نطاق التنفيذ: <span id="loopRange">-</span></p>
       </div>
     </div>
 
@@ -529,6 +603,54 @@
 
     <div class="card" data-collapsible>
       <div class="collapse-toggle">
+        <h2>بنك الميزات المستخلصة من تطبيقات الأتمتة</h2>
+        <button class="ghost" onclick="toggleCard(this)">طي/فتح</button>
+      </div>
+      <div class="card-body">
+        <p class="subtle">تحليل لأبرز تطبيقات الأتمتة لاستخلاص الميزات وإضافتها لتطبيقك.</p>
+        <div class="feature-controls">
+          <input id="featureSearch" placeholder="ابحث عن ميزة أو تطبيق...">
+          <select id="featureCategory">
+            <option value="all">كل المجالات</option>
+            <option value="RPA">RPA</option>
+            <option value="Browser">متصفح ويب</option>
+            <option value="Workflow">سير عمل</option>
+            <option value="Data">بيانات وتحليلات</option>
+            <option value="AI">ذكاء اصطناعي</option>
+            <option value="Testing">اختبار وجودة</option>
+            <option value="Security">أمان وامتثال</option>
+            <option value="Integration">تكاملات</option>
+            <option value="Monitoring">مراقبة وتشغيل</option>
+            <option value="Collaboration">تعاون وإدارة فرق</option>
+          </select>
+          <button class="ghost" onclick="resetFeatureFilters()">مسح</button>
+        </div>
+        <div class="feature-meta">
+          <span>إجمالي الميزات: <strong id="totalFeatures">0</strong></span>
+          <span>النتائج: <strong id="filteredFeatures">0</strong></span>
+        </div>
+        <div class="toolbar">
+          <button onclick="addFilteredFeatures()">إضافة كل النتائج</button>
+          <button class="ghost" onclick="removeFilteredFeatures()">إزالة النتائج</button>
+          <button class="ghost" onclick="addAllFeatures()">إضافة جميع الميزات</button>
+        </div>
+        <div class="divider-light"></div>
+        <div id="researchList" class="list"></div>
+        <div class="divider-light"></div>
+        <div class="inline">
+          <span class="pill">ميزات تطبيقي المختارة:</span>
+          <span id="selectedCount" class="badge">0</span>
+        </div>
+        <div id="selectedFeatures" class="chips"></div>
+        <div class="toolbar">
+          <button class="ghost" onclick="exportSelectedFeatures()">تصدير الميزات</button>
+          <button class="ghost" onclick="clearSelectedFeatures()">مسح الاختيارات</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" data-collapsible>
+      <div class="collapse-toggle">
         <h2>مسار العمل</h2>
         <button class="ghost" onclick="toggleCard(this)">طي/فتح</button>
       </div>
@@ -576,6 +698,294 @@
     let draggedPath = null;
     let lastRunAt = localStorage.lastRunAt || '';
     let successRate = Number(localStorage.successRate || '100');
+    const researchCatalog = [
+      {
+        app: 'UiPath',
+        category: 'RPA',
+        focus: 'أتمتة مؤسسية',
+        features: [
+          { name: 'مصمم سير عمل بصري', detail: 'سحب وإفلات لبناء الأتمتة بدون برمجة.' },
+          { name: 'إدارة الاستثناءات', detail: 'مسارات fallback وإعادة المحاولة تلقائياً.' },
+          { name: 'مراقبة البوتات', detail: 'لوحة تحكم لحالة التنفيذ والأخطاء.' },
+          { name: 'إعادة استخدام المكوّنات', detail: 'مكتبة إجراءات قابلة لإعادة الاستخدام.' },
+          { name: 'جدولة المهام', detail: 'تشغيل وفق وقت/حدث مع تنبيهات.' },
+          { name: 'سجل تدقيق', detail: 'تتبع من نفّذ ماذا ومتى.' },
+          { name: 'إدارة أصول', detail: 'إدارة مفاتيح وأصول وبيانات الاعتماد.' },
+          { name: 'مقياس حمولة', detail: 'توزيع المهام على عدة عمال.' }
+        ]
+      },
+      {
+        app: 'Power Automate',
+        category: 'Workflow',
+        focus: 'سير عمل سحابي',
+        features: [
+          { name: 'قوالب جاهزة', detail: 'مكتبة قوالب حسب السيناريو.' },
+          { name: 'ربط التطبيقات', detail: 'تكامل مع مصادر متعددة بسهولة.' },
+          { name: 'مشغلات الأحداث', detail: 'تشغيل تلقائي عند حدوث حدث.' },
+          { name: 'موافقات', detail: 'خطوات موافقة بشرية داخل المسار.' },
+          { name: 'تنبيهات ذكية', detail: 'إشعارات عند نجاح/فشل.' },
+          { name: 'إعادة تشغيل جزئي', detail: 'استئناف من الخطوة المتعثرة.' },
+          { name: 'تحكم في المتغيرات', detail: 'متغيرات مشتركة بين الخطوات.' },
+          { name: 'إدارة الإصدارات', detail: 'نسخ متعددة لكل تدفق.' }
+        ]
+      },
+      {
+        app: 'Zapier',
+        category: 'Workflow',
+        focus: 'أتمتة بدون كود',
+        features: [
+          { name: 'تجارب متعددة الخطوات', detail: 'سلاسل خطية سهلة الإنشاء.' },
+          { name: 'منطق الشرط', detail: 'فلاتر وشرطيات قبل التنفيذ.' },
+          { name: 'تجزئة البيانات', detail: 'تحويل سريع للبيانات بين الخطوات.' },
+          { name: 'اختبارات قبل التشغيل', detail: 'تشغيل تجريبي مع سجل مفصل.' },
+          { name: 'مستودع المهام', detail: 'طابور لمعالجة أعداد كبيرة.' },
+          { name: 'تشغيلات مؤقتة', detail: 'تشغيل بعد مدة زمنية محددة.' },
+          { name: 'معالجة التكرار', detail: 'منع التكرار عبر مفاتيح فريدة.' },
+          { name: 'سجلات تنفيذ', detail: 'تاريخ تشغيلات مع تفاصيل.' }
+        ]
+      },
+      {
+        app: 'Playwright',
+        category: 'Browser',
+        focus: 'أتمتة متصفح حديثة',
+        features: [
+          { name: 'تسجيل إجراءات', detail: 'تسجيل تفاعلات وتحويلها لأكواد.' },
+          { name: 'انتظار ذكي', detail: 'انتظار عناصر وتحميلات تلقائي.' },
+          { name: 'تشغيل متوازي', detail: 'جلسات متعددة مع عزل بيانات.' },
+          { name: 'اختبار متعدد المتصفحات', detail: 'تشغيل على كروم/فايرفوكس/ويبكيت.' },
+          { name: 'التقاط وسوم العناصر', detail: 'مساعد لبناء selectors.' },
+          { name: 'تقارير مصوّرة', detail: 'لقطات شاشة/فيديو لكل تشغيل.' },
+          { name: 'شبكة محاكاة', detail: 'محاكاة بطء الشبكة وإعادة المحاولة.' },
+          { name: 'قياس الأداء', detail: 'التقاط مؤشرات الأداء.' }
+        ]
+      },
+      {
+        app: 'Make (Integromat)',
+        category: 'Data',
+        focus: 'سيناريوهات متقدمة',
+        features: [
+          { name: 'مخطط تدفق بصري', detail: 'عرض خريطة كاملة للسيناريو.' },
+          { name: 'محددات السرعة', detail: 'تحكم في معدل الطلبات.' },
+          { name: 'تجميع البيانات', detail: 'تجميع/تفكيك السجلات بين الخطوات.' },
+          { name: 'معالجة الأخطاء', detail: 'مسارات بديلة عند الفشل.' },
+          { name: 'مراقبة الأداء', detail: 'مؤشرات زمن الاستجابة.' },
+          { name: 'إدارة النسخ', detail: 'إصدارات متعددة لنفس السيناريو.' },
+          { name: 'تحويلات متقدمة', detail: 'وظائف تحويل بيانات متقدمة.' },
+          { name: 'ربط الويب هوكس', detail: 'إنشاء تدفقات عبر Webhooks.' }
+        ]
+      },
+      {
+        app: 'Automation Anywhere',
+        category: 'AI',
+        focus: 'أتمتة مدعومة بالذكاء',
+        features: [
+          { name: 'مستندات ذكية', detail: 'استخراج بيانات من ملفات PDF.' },
+          { name: 'اقتراحات خطوات', detail: 'إرشاد تلقائي أثناء البناء.' },
+          { name: 'حزم جاهزة', detail: 'مكتبة بوتات جاهزة للنشر.' },
+          { name: 'مراقبة الامتثال', detail: 'تحقق من قواعد الامتثال.' },
+          { name: 'تحليلات تشغيل', detail: 'لوحة أداء للبوتات.' },
+          { name: 'إدارة الصلاحيات', detail: 'أدوار المستخدمين والفرق.' },
+          { name: 'مساعد بناء الخطوات', detail: 'اقتراحات باستخدام AI.' },
+          { name: 'تصنيف المحتوى', detail: 'تصنيف تلقائي لمحتوى المستندات.' }
+        ]
+      },
+      {
+        app: 'Selenium',
+        category: 'Testing',
+        focus: 'اختبارات متصفح',
+        features: [
+          { name: 'توافق واسع', detail: 'يدعم متصفحات متعددة.' },
+          { name: 'شبكة Grid', detail: 'تشغيل اختبارات متوازية.' },
+          { name: 'دعم لغات متعددة', detail: 'تنفيذ بالأكثر من لغة.' },
+          { name: 'سجلات مفصلة', detail: 'تتبع الأعطال مع لقطات.' },
+          { name: 'تكامل CI', detail: 'تشغيل ضمن خطوط CI/CD.' },
+          { name: 'انتظار ذكي', detail: 'انتظار حتى تجهز العناصر.' }
+        ]
+      },
+      {
+        app: 'n8n',
+        category: 'Integration',
+        focus: 'تكامل مفتوح المصدر',
+        features: [
+          { name: 'محطات عقدية', detail: 'بناء تدفقات عبر Nodes.' },
+          { name: 'تدفقات ذاتية الاستضافة', detail: 'تشغيل على البنية الخاصة.' },
+          { name: 'مقاطع برمجية', detail: 'تشغيل JS داخل المسار.' },
+          { name: 'إدارة بيانات الاعتماد', detail: 'تخزين آمن للرموز.' },
+          { name: 'Webhook جاهز', detail: 'استقبال أحداث عبر Webhooks.' },
+          { name: 'سجل التنفيذ', detail: 'تاريخ تشغيلات مفصل.' }
+        ]
+      },
+      {
+        app: 'Workato',
+        category: 'Integration',
+        focus: 'أتمتة مؤسسية متقدمة',
+        features: [
+          { name: 'وصفات (Recipes)', detail: 'قوالب عمليات قابلة للتخصيص.' },
+          { name: 'حوكمة مركزية', detail: 'إدارة صلاحيات ورقابة.' },
+          { name: 'رسم بيانات', detail: 'خرائط تحويل بيانات.' },
+          { name: 'تكرار مع تحكم', detail: 'سياسة إعادة المحاولة.' },
+          { name: 'إدارة اتصال API', detail: 'موصلات جاهزة.' },
+          { name: 'مراقبة SLA', detail: 'قياس الالتزام بزمن الاستجابة.' }
+        ]
+      },
+      {
+        app: 'Blue Prism',
+        category: 'RPA',
+        focus: 'RPA مؤسسي',
+        features: [
+          { name: 'مكتبة كائنات', detail: 'إعادة استخدام كائنات الأتمتة.' },
+          { name: 'إدارة الجلسات', detail: 'تشغيل آمن ومركزي للبوتات.' },
+          { name: 'حوكمة وإمتثال', detail: 'سياسات وتشغيل آمن.' },
+          { name: 'سجل تدقيق', detail: 'تتبّع نشاطات مفصل.' },
+          { name: 'تجزئة المهام', detail: 'تقسيم العمليات لخطوات.' },
+          { name: 'قوائم انتظار', detail: 'طابور للمهام مع أولوية.' }
+        ]
+      },
+      {
+        app: 'Airflow',
+        category: 'Monitoring',
+        focus: 'جدولة البيانات',
+        features: [
+          { name: 'DAGs مرئية', detail: 'عرض تبعيات المهام.' },
+          { name: 'سجلات تشغيل', detail: 'سجل تشغيل لكل مهمة.' },
+          { name: 'إعادة التشغيل', detail: 'تشغيل من خطوة محددة.' },
+          { name: 'تنبيهات', detail: 'إشعارات بالفشل.' },
+          { name: 'إدارة المتغيرات', detail: 'متغيرات على مستوى النظام.' },
+          { name: 'مخططات زمنية', detail: 'تقويم لجدولة المهام.' }
+        ]
+      },
+      {
+        app: 'Automa',
+        category: 'Browser',
+        focus: 'أتمتة متصفح بدون كود',
+        features: [
+          { name: 'محرر كتل', detail: 'كتل جاهزة للإجراءات.' },
+          { name: 'جدولة التشغيل', detail: 'تشغيل آلي في أوقات محددة.' },
+          { name: 'تشغيل خلفي', detail: 'تنفيذ بدون واجهة.' },
+          { name: 'تصدير واستيراد', detail: 'ملفات جاهزة للمسارات.' },
+          { name: 'التقاط بيانات', detail: 'جمع بيانات من صفحات الويب.' },
+          { name: 'إدارة جلسات', detail: 'حفظ ملفات تعريف.' }
+        ]
+      },
+      {
+        app: 'Browserflow',
+        category: 'Browser',
+        focus: 'تدفقات ويب متقدمة',
+        features: [
+          { name: 'تسجيل مرئي', detail: 'إنشاء تدفق عبر التسجيل.' },
+          { name: 'تعاون الفرق', detail: 'مشاركة تدفقات الفريق.' },
+          { name: 'محددات ذكية', detail: 'Selectors متينة.' },
+          { name: 'لقطات مراقبة', detail: 'لقطات بعد كل خطوة.' },
+          { name: 'إدارة البيانات', detail: 'مدخلات ديناميكية.' },
+          { name: 'إرسال تقارير', detail: 'تقارير تلقائية بعد التشغيل.' }
+        ]
+      },
+      {
+        app: 'TagUI',
+        category: 'RPA',
+        focus: 'RPA مفتوح المصدر',
+        features: [
+          { name: 'أتمتة عبر نصوص', detail: 'كتابة أوامر نصية بسيطة.' },
+          { name: 'التقاط عناصر', detail: 'التقاط عناصر بصرياً.' },
+          { name: 'OCR مدمج', detail: 'قراءة نص من الصور.' },
+          { name: 'جدولة بسيطة', detail: 'تشغيل عبر مهمة مجدولة.' },
+          { name: 'تكامل API', detail: 'استدعاء واجهات برمجية.' },
+          { name: 'سجلات تفصيلية', detail: 'متابعة الأخطاء بسهولة.' }
+        ]
+      },
+      {
+        app: 'IFTTT',
+        category: 'Integration',
+        focus: 'تكامل بسيط',
+        features: [
+          { name: 'مشغلات بسيطة', detail: 'If This Then That.' },
+          { name: 'قوالب جاهزة', detail: 'Applet جاهز للإنشاء.' },
+          { name: 'قنوات متعددة', detail: 'ربط خدمات متعددة.' },
+          { name: 'تشغيل تلقائي', detail: 'تشغيل عند حدث محدد.' },
+          { name: 'سجل تشغيل', detail: 'عرض تاريخ التنفيذ.' },
+          { name: 'إشعارات فورية', detail: 'تنبيه عند التشغيل.' }
+        ]
+      },
+      {
+        app: 'Celonis',
+        category: 'Data',
+        focus: 'تحليل العمليات',
+        features: [
+          { name: 'اكتشاف العملية', detail: 'استخراج تدفقات فعلية.' },
+          { name: 'لوحة تحليلات', detail: 'مؤشرات أداء شاملة.' },
+          { name: 'تحليل الاختناقات', detail: 'كشف التعثرات في المسار.' },
+          { name: 'توصيات تحسين', detail: 'اقتراحات تحسين تلقائية.' },
+          { name: 'تكامل مصادر', detail: 'جمع من عدة نظم.' },
+          { name: 'حوكمة البيانات', detail: 'سياسات بيانات واضحة.' }
+        ]
+      },
+      {
+        app: 'ServiceNow',
+        category: 'Workflow',
+        focus: 'سير عمل مؤسسي',
+        features: [
+          { name: 'أتمتة الطلبات', detail: 'سير عمل لطلبات الخدمة.' },
+          { name: 'إدارة الحالات', detail: 'تتبع حالة الطلب.' },
+          { name: 'بوابة موحدة', detail: 'نقطة دخول لكل الخدمات.' },
+          { name: 'موافقات متعددة', detail: 'سلاسل موافقات.' },
+          { name: 'سجل تدقيق', detail: 'تتبع كامل للعمليات.' },
+          { name: 'تكامل ITSM', detail: 'ربط مع ITSM.' }
+        ]
+      },
+      {
+        app: 'Grafana',
+        category: 'Monitoring',
+        focus: 'مراقبة ولوحات',
+        features: [
+          { name: 'لوحات ديناميكية', detail: 'رسوم بيانية قابلة للتخصيص.' },
+          { name: 'تنبيهات متقدمة', detail: 'تنبيهات متعددة القنوات.' },
+          { name: 'مصادر بيانات متعددة', detail: 'دمج من مصادر مختلفة.' },
+          { name: 'تحليل السلاسل الزمنية', detail: 'مؤشرات زمنية.' },
+          { name: 'تجميع السجلات', detail: 'عرض سجلات متكاملة.' },
+          { name: 'قوالب مشاركة', detail: 'مشاركة لوحات بسهولة.' }
+        ]
+      },
+      {
+        app: 'Datadog',
+        category: 'Monitoring',
+        focus: 'مراقبة شاملة',
+        features: [
+          { name: 'تتبع توزيع', detail: 'APM وتوزيع الطلبات.' },
+          { name: 'مؤشرات SLA', detail: 'قياس الالتزام بالخدمة.' },
+          { name: 'تحليل السجلات', detail: 'بحث في السجلات.' },
+          { name: 'تنبيهات تلقائية', detail: 'قواعد تنبيه متقدمة.' },
+          { name: 'خرائط الخدمة', detail: 'رسم شبكة الخدمات.' },
+          { name: 'تحليلات تكلفة', detail: 'تتبع كلفة الموارد.' }
+        ]
+      },
+      {
+        app: 'Okta',
+        category: 'Security',
+        focus: 'هوية وأمان',
+        features: [
+          { name: 'SSO', detail: 'تسجيل دخول موحد.' },
+          { name: 'MFA', detail: 'تحقق متعدد العوامل.' },
+          { name: 'سياسات وصول', detail: 'قواعد وصول حسب السياق.' },
+          { name: 'إدارة المستخدمين', detail: 'إدارة حسابات وصلاحيات.' },
+          { name: 'سجل تدقيق', detail: 'تتبع عمليات الدخول.' },
+          { name: 'تكاملات جاهزة', detail: 'ربط سريع مع التطبيقات.' }
+        ]
+      },
+      {
+        app: 'Jira',
+        category: 'Collaboration',
+        focus: 'إدارة مشاريع',
+        features: [
+          { name: 'سير عمل قابل للتخصيص', detail: 'حالات متعددة للعمل.' },
+          { name: 'تنبيهات وتذكيرات', detail: 'إشعارات عند التغييرات.' },
+          { name: 'ربط التذاكر', detail: 'علاقات بين المهام.' },
+          { name: 'لوحات كانبان', detail: 'إدارة مرئية للعمل.' },
+          { name: 'تقارير دورية', detail: 'تقارير تقدم دورية.' },
+          { name: 'أدوار الفريق', detail: 'صلاحيات فريق مفصلة.' }
+        ]
+      }
+    ];
+    let selectedFeatures = [];
     const actionFilter = document.getElementById('actionFilter');
     const quietMode = document.getElementById('quietMode');
     const statusChip = document.getElementById('runStatus');
@@ -597,6 +1007,19 @@
     if (localStorage.autoSave) document.getElementById('autoSave').checked = localStorage.autoSave === 'true';
     if (localStorage.smartDelay) document.getElementById('smartDelay').checked = localStorage.smartDelay === 'true';
     if (localStorage.quietMode) document.getElementById('quietMode').checked = localStorage.quietMode === 'true';
+    if (localStorage.loopStartIndex) document.getElementById('loopStartIndex').value = localStorage.loopStartIndex;
+    if (localStorage.loopMaxItems) document.getElementById('loopMaxItems').value = localStorage.loopMaxItems;
+    if (localStorage.loopMode) document.getElementById('loopMode').value = localStorage.loopMode;
+    if (localStorage.loopShuffle) document.getElementById('loopShuffle').checked = localStorage.loopShuffle === 'true';
+    if (localStorage.loopSkipErrors) document.getElementById('loopSkipErrors').checked = localStorage.loopSkipErrors === 'true';
+    if (localStorage.loopAutoDetect) document.getElementById('loopAutoDetect').checked = localStorage.loopAutoDetect === 'true';
+    if (localStorage.selectedFeatures) {
+      try {
+        selectedFeatures = JSON.parse(localStorage.selectedFeatures);
+      } catch (e) {
+        selectedFeatures = [];
+      }
+    }
     parseData();
 
     function saveAll() {
@@ -612,6 +1035,13 @@
       localStorage.quietMode = document.getElementById('quietMode').checked;
       localStorage.lastRunAt = lastRunAt;
       localStorage.successRate = successRate;
+      localStorage.loopStartIndex = document.getElementById('loopStartIndex').value;
+      localStorage.loopMaxItems = document.getElementById('loopMaxItems').value;
+      localStorage.loopMode = document.getElementById('loopMode').value;
+      localStorage.loopShuffle = document.getElementById('loopShuffle').checked;
+      localStorage.loopSkipErrors = document.getElementById('loopSkipErrors').checked;
+      localStorage.loopAutoDetect = document.getElementById('loopAutoDetect').checked;
+      localStorage.selectedFeatures = JSON.stringify(selectedFeatures);
     }
 
     function logMsg(msg) {
@@ -909,8 +1339,11 @@
           data = JSON.parse(text);
         } else {
           const lines = text.split('\n').filter(l => l.trim());
-          const headers = lines[0].split(',').map(h => h.trim());
-          data = lines.slice(1).map(l => {
+          const autoDetect = document.getElementById('loopAutoDetect').checked;
+          const rawHeaders = lines[0].split(',').map(h => h.trim());
+          const headers = autoDetect ? rawHeaders : rawHeaders.map((_, idx) => `column_${idx + 1}`);
+          const rows = autoDetect ? lines.slice(1) : lines;
+          data = rows.map(l => {
             const vals = l.split(',').map(v => v.trim());
             let obj = {};
             headers.forEach((h, i) => obj[h] = vals[i] || '');
@@ -922,8 +1355,65 @@
         data = [];
       }
       document.getElementById('dataCount').textContent = data.length;
+      updateLoopSummary();
       saveAll();
       updateStats();
+    }
+
+    function updateLoopSummary() {
+      const startIndex = Math.max(0, Number(document.getElementById('loopStartIndex').value) || 0);
+      const maxItems = Number(document.getElementById('loopMaxItems').value);
+      const total = data.length;
+      const effectiveMax = Number.isFinite(maxItems) && maxItems > 0 ? maxItems : total;
+      const endIndex = total ? Math.min(total - 1, startIndex + effectiveMax - 1) : 0;
+      if (!total) {
+        document.getElementById('loopRange').textContent = '-';
+        return;
+      }
+      document.getElementById('loopRange').textContent = `${startIndex} → ${endIndex} (${effectiveMax} عنصر)`;
+    }
+
+    function insertSampleData(type) {
+      if (type === 'json') {
+        document.getElementById('dataJSON').value = JSON.stringify([
+          { name: 'أحمد', email: 'a@example.com', city: 'الرياض' },
+          { name: 'سارة', email: 's@example.com', city: 'جدة' }
+        ], null, 2);
+      }
+      if (type === 'csv') {
+        document.getElementById('dataJSON').value = 'name,email,city\nأحمد,a@example.com,الرياض\nسارة,s@example.com,جدة';
+      }
+      parseData();
+      logMsg('تم إدخال مثال بيانات للحلقة');
+    }
+
+    function validateData() {
+      const text = document.getElementById('dataJSON').value.trim();
+      if (!text) {
+        logMsg('لا توجد بيانات للتحقق');
+        return;
+      }
+      try {
+        if (text.startsWith('[') || text.startsWith('{')) {
+          JSON.parse(text);
+          logMsg('JSON صالح ويمكن استخدامه');
+        } else {
+          const lines = text.split('\n').filter(l => l.trim());
+          if (lines.length < 2) {
+            logMsg('CSV يحتاج صف رؤوس وصف واحد على الأقل');
+            return;
+          }
+          const headerCount = lines[0].split(',').length;
+          const invalidRow = lines.slice(1).findIndex(line => line.split(',').length !== headerCount);
+          if (invalidRow >= 0) {
+            logMsg(`CSV غير متوازن عند السطر ${invalidRow + 2}`);
+            return;
+          }
+          logMsg('CSV صالح ويمكن استخدامه');
+        }
+      } catch (error) {
+        logMsg('بيانات غير صالحة');
+      }
     }
 
     function clearData() {
@@ -1232,7 +1722,16 @@
         globalDelay: document.getElementById('globalDelay').value,
         smartDelay: document.getElementById('smartDelay').checked,
         autoSave: document.getElementById('autoSave').checked,
-        quietMode: document.getElementById('quietMode').checked
+        quietMode: document.getElementById('quietMode').checked,
+        loopSettings: {
+          startIndex: document.getElementById('loopStartIndex').value,
+          maxItems: document.getElementById('loopMaxItems').value,
+          mode: document.getElementById('loopMode').value,
+          shuffle: document.getElementById('loopShuffle').checked,
+          skipErrors: document.getElementById('loopSkipErrors').checked,
+          autoDetectCsv: document.getElementById('loopAutoDetect').checked
+        },
+        selectedFeatures
       };
       const blob = new Blob([JSON.stringify(settings, null, 2)], { type: 'application/json' });
       const link = document.createElement('a');
@@ -1251,6 +1750,178 @@
       document.getElementById('globalDelay').value = value;
       updateStats();
       maybeAutoSave();
+    }
+
+    function getFeatureIndex() {
+      return researchCatalog.flatMap((app) =>
+        app.features.map((feature) => ({
+          id: `${app.app}-${feature.name}`.replace(/\s+/g, '-'),
+          app: app.app,
+          category: app.category,
+          focus: app.focus,
+          name: feature.name,
+          detail: feature.detail
+        }))
+      );
+    }
+
+    function updateFeatureCounts(filteredCount) {
+      const total = getFeatureIndex().length;
+      document.getElementById('totalFeatures').textContent = total;
+      document.getElementById('filteredFeatures').textContent = filteredCount;
+    }
+
+    function getFilteredFeatures() {
+      const search = document.getElementById('featureSearch').value.trim().toLowerCase();
+      const category = document.getElementById('featureCategory').value;
+      return getFeatureIndex().filter((item) => {
+        const matchesCategory = category === 'all' || item.category === category;
+        const matchesSearch = !search ||
+          item.name.toLowerCase().includes(search) ||
+          item.app.toLowerCase().includes(search) ||
+          item.detail.toLowerCase().includes(search);
+        return matchesCategory && matchesSearch;
+      });
+    }
+
+    function renderResearchList() {
+      const list = document.getElementById('researchList');
+      const features = getFilteredFeatures();
+      list.innerHTML = '';
+      updateFeatureCounts(features.length);
+      if (!features.length) {
+        list.innerHTML = '<div class="muted small">لا توجد نتائج مطابقة.</div>';
+        return;
+      }
+      features.forEach((item) => {
+        const isSelected = selectedFeatures.some((feature) => feature.id === item.id);
+        const card = document.createElement('div');
+        card.className = 'feature-card';
+        card.innerHTML = `
+          <div class="feature-header">
+            <strong>${item.name}</strong>
+            <span class="badge">${item.app}</span>
+          </div>
+          <div class="feature-tags">
+            <span>${item.category}</span>
+            <span>•</span>
+            <span>${item.focus}</span>
+          </div>
+          <div class="small">${item.detail}</div>
+        `;
+        const actions = document.createElement('div');
+        actions.className = 'feature-actions';
+        const toggleBtn = document.createElement('button');
+        toggleBtn.className = isSelected ? 'primary' : 'ghost';
+        toggleBtn.textContent = isSelected ? 'مضافة لتطبيقي' : 'إضافة لتطبيقي';
+        toggleBtn.onclick = () => toggleFeature(item.id);
+        const addAppBtn = document.createElement('button');
+        addAppBtn.textContent = 'إضافة ميزات التطبيق بالكامل';
+        addAppBtn.onclick = () => addAppFeatures(item.app);
+        actions.appendChild(toggleBtn);
+        actions.appendChild(addAppBtn);
+        card.appendChild(actions);
+        list.appendChild(card);
+      });
+    }
+
+    function renderSelectedFeatures() {
+      const container = document.getElementById('selectedFeatures');
+      container.innerHTML = '';
+      selectedFeatures.forEach((feature) => {
+        const chip = document.createElement('span');
+        chip.className = 'chip';
+        chip.textContent = `${feature.name} • ${feature.app}`;
+        container.appendChild(chip);
+      });
+      document.getElementById('selectedCount').textContent = selectedFeatures.length;
+    }
+
+    function toggleFeature(id) {
+      const index = selectedFeatures.findIndex((feature) => feature.id === id);
+      if (index >= 0) {
+        selectedFeatures.splice(index, 1);
+      } else {
+        const item = getFeatureIndex().find((feature) => feature.id === id);
+        if (item) {
+          selectedFeatures.push(item);
+        }
+      }
+      saveAll();
+      renderResearchList();
+      renderSelectedFeatures();
+    }
+
+    function addAppFeatures(appName) {
+      const appFeatures = getFeatureIndex().filter((feature) => feature.app === appName);
+      appFeatures.forEach((feature) => {
+        if (!selectedFeatures.some((item) => item.id === feature.id)) {
+          selectedFeatures.push(feature);
+        }
+      });
+      saveAll();
+      renderResearchList();
+      renderSelectedFeatures();
+      logMsg(`تمت إضافة ميزات ${appName} إلى تطبيقي`);
+    }
+
+    function addFilteredFeatures() {
+      const features = getFilteredFeatures();
+      features.forEach((feature) => {
+        if (!selectedFeatures.some((item) => item.id === feature.id)) {
+          selectedFeatures.push(feature);
+        }
+      });
+      saveAll();
+      renderResearchList();
+      renderSelectedFeatures();
+      logMsg('تمت إضافة كل نتائج البحث إلى تطبيقي');
+    }
+
+    function removeFilteredFeatures() {
+      const features = getFilteredFeatures();
+      const featureIds = new Set(features.map((feature) => feature.id));
+      selectedFeatures = selectedFeatures.filter((feature) => !featureIds.has(feature.id));
+      saveAll();
+      renderResearchList();
+      renderSelectedFeatures();
+      logMsg('تمت إزالة نتائج البحث من تطبيقي');
+    }
+
+    function addAllFeatures() {
+      const allFeatures = getFeatureIndex();
+      allFeatures.forEach((feature) => {
+        if (!selectedFeatures.some((item) => item.id === feature.id)) {
+          selectedFeatures.push(feature);
+        }
+      });
+      saveAll();
+      renderResearchList();
+      renderSelectedFeatures();
+      logMsg('تمت إضافة جميع الميزات إلى تطبيقي');
+    }
+
+    function exportSelectedFeatures() {
+      const blob = new Blob([JSON.stringify(selectedFeatures, null, 2)], { type: 'application/json' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = 'selected-features.json';
+      link.click();
+      URL.revokeObjectURL(link.href);
+    }
+
+    function clearSelectedFeatures() {
+      if (!confirm('هل أنت متأكد من مسح كل الميزات المختارة؟')) return;
+      selectedFeatures = [];
+      saveAll();
+      renderResearchList();
+      renderSelectedFeatures();
+    }
+
+    function resetFeatureFilters() {
+      document.getElementById('featureSearch').value = '';
+      document.getElementById('featureCategory').value = 'all';
+      renderResearchList();
     }
 
     // باقي الدوال (execute, recording, picker...) مطورة لتدعم كل الميزات الجديدة.
@@ -1272,11 +1943,31 @@
     document.getElementById('autoSave').addEventListener('change', saveAll);
     document.getElementById('smartDelay').addEventListener('change', saveAll);
     document.getElementById('quietMode').addEventListener('change', saveAll);
+    document.getElementById('loopStartIndex').addEventListener('input', () => {
+      updateLoopSummary();
+      saveAll();
+    });
+    document.getElementById('loopMaxItems').addEventListener('input', () => {
+      updateLoopSummary();
+      saveAll();
+    });
+    document.getElementById('loopMode').addEventListener('change', saveAll);
+    document.getElementById('loopShuffle').addEventListener('change', saveAll);
+    document.getElementById('loopSkipErrors').addEventListener('change', saveAll);
+    document.getElementById('loopAutoDetect').addEventListener('change', () => {
+      parseData();
+      saveAll();
+    });
     document.getElementById('globalDelay').addEventListener('input', updateStats);
     actionFilter.addEventListener('input', () => renderWorkflow());
+    document.getElementById('featureSearch').addEventListener('input', renderResearchList);
+    document.getElementById('featureCategory').addEventListener('change', renderResearchList);
 
     renderWorkflow();
     renderVariables();
+    renderResearchList();
+    renderSelectedFeatures();
+    updateLoopSummary();
     updateStats();
   </script>
 </body>
