@@ -365,6 +365,39 @@
       gap: 8px;
       flex-wrap: wrap;
     }
+    .hidden {
+      display: none;
+    }
+    .notice {
+      background: rgba(56, 189, 248, 0.08);
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      color: var(--text);
+      border-radius: 12px;
+      padding: 12px;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    .notice strong {
+      color: var(--accent);
+    }
+    #content-placeholder {
+      display: grid;
+      place-items: center;
+      height: 100vh;
+      padding: 24px;
+      text-align: center;
+      color: var(--muted);
+    }
+    #content-placeholder p {
+      margin: 8px 0 0;
+      font-size: 13px;
+    }
+    #browser-iframe {
+      width: 100%;
+      height: 100vh;
+      border: 0;
+      background: var(--bg);
+    }
   </style>
 </head>
 <body>
@@ -378,6 +411,11 @@
         <span></span>
         <strong>جاهز</strong>
       </div>
+    </div>
+
+    <div id="electronWarning" class="notice hidden">
+      <strong>تنبيه:</strong> بعض الميزات المتقدمة (التسجيل والالتقاط) تتطلب تشغيل الواجهة عبر
+      <span class="badge">npm start</span> أو تطبيق Electron.
     </div>
 
     <div class="card" data-collapsible>
@@ -682,11 +720,22 @@
   </div>
 
   <div id="content">
+    <div id="content-placeholder" class="hidden">
+      <div>
+        <strong>لم يتم فتح أي رابط بعد</strong>
+        <p>يمكنك التصفح هنا، لكن الأتمتة الكاملة تتطلب تشغيل الواجهة عبر Electron.</p>
+      </div>
+    </div>
     <webview id="browser" src="about:blank" sandbox="allow-scripts allow-same-origin" partition="persist:automation" style="width:100%;height:100vh;"></webview>
+    <iframe id="browser-iframe" class="hidden" title="عرض المتصفح" src="about:blank"></iframe>
   </div>
 
   <script>
     const webview = document.getElementById('browser');
+    const browserIframe = document.getElementById('browser-iframe');
+    const contentPlaceholder = document.getElementById('content-placeholder');
+    const electronWarning = document.getElementById('electronWarning');
+    const supportsWebview = !!(webview && typeof webview.loadURL === 'function');
     let workflow = [];
     let variables = {};
     let data = [];
@@ -1057,30 +1106,67 @@
       return /^https?:\/\//i.test(value) ? value : `https://${value}`;
     }
 
+    function ensureWebviewAvailable() {
+      if (supportsWebview) return true;
+      logMsg('الميزة تتطلب تشغيل الواجهة عبر Electron.');
+      return false;
+    }
+
     function openTargetUrl() {
       const url = normalizeUrl(targetUrlInput.value.trim());
       if (!url) return;
-      webview.loadURL(url);
+      if (supportsWebview) {
+        webview.loadURL(url);
+      } else {
+        browserIframe.src = url;
+        contentPlaceholder.classList.add('hidden');
+      }
       logMsg(`تم فتح الرابط: ${url}`);
     }
 
     function reloadTarget() {
-      webview.reload();
+      if (supportsWebview) {
+        webview.reload();
+        return;
+      }
+      if (browserIframe.contentWindow) {
+        browserIframe.contentWindow.location.reload();
+      } else {
+        logMsg('تعذر تحديث الصفحة في وضع المتصفح.');
+      }
     }
 
     function stopTarget() {
-      webview.stop();
+      if (supportsWebview) {
+        webview.stop();
+        return;
+      }
+      if (browserIframe.contentWindow?.stop) {
+        browserIframe.contentWindow.stop();
+      }
     }
 
     function navigateBack() {
-      if (webview.canGoBack()) {
-        webview.goBack();
+      if (supportsWebview) {
+        if (webview.canGoBack()) {
+          webview.goBack();
+        }
+        return;
+      }
+      if (browserIframe.contentWindow) {
+        browserIframe.contentWindow.history.back();
       }
     }
 
     function navigateForward() {
-      if (webview.canGoForward()) {
-        webview.goForward();
+      if (supportsWebview) {
+        if (webview.canGoForward()) {
+          webview.goForward();
+        }
+        return;
+      }
+      if (browserIframe.contentWindow) {
+        browserIframe.contentWindow.history.forward();
       }
     }
 
@@ -1093,6 +1179,7 @@
     }
 
     async function pickSelector() {
+      if (!ensureWebviewAvailable()) return;
       try {
         setMacroStatus('التقاط Selector نشط');
         const selector = await webview.executeJavaScript(`(() => new Promise((resolve) => {
@@ -1172,6 +1259,7 @@
     }
 
     async function startMacroRecording() {
+      if (!ensureWebviewAvailable()) return;
       if (isMacroRecording) return;
       isMacroRecording = true;
       setMacroStatus('تسجيل ماكرو نشط');
@@ -1223,6 +1311,7 @@
     }
 
     async function stopMacroRecording() {
+      if (!ensureWebviewAvailable()) return;
       if (!isMacroRecording) return;
       isMacroRecording = false;
       setMacroStatus('غير نشط');
@@ -1925,15 +2014,27 @@
     }
 
     // باقي الدوال (execute, recording, picker...) مطورة لتدعم كل الميزات الجديدة.
-    webview.addEventListener('did-navigate', (event) => {
-      targetUrlInput.value = event.url;
-    });
-
-    webview.addEventListener('did-navigate-in-page', (event) => {
-      if (event.isMainFrame) {
+    if (supportsWebview) {
+      webview.addEventListener('did-navigate', (event) => {
         targetUrlInput.value = event.url;
-      }
-    });
+      });
+
+      webview.addEventListener('did-navigate-in-page', (event) => {
+        if (event.isMainFrame) {
+          targetUrlInput.value = event.url;
+        }
+      });
+    } else {
+      contentPlaceholder.classList.remove('hidden');
+      electronWarning.classList.remove('hidden');
+      if (webview) webview.style.display = 'none';
+      browserIframe.classList.remove('hidden');
+      browserIframe.addEventListener('load', () => {
+        if (browserIframe.src && browserIframe.src !== 'about:blank') {
+          targetUrlInput.value = browserIframe.src;
+        }
+      });
+    }
 
     document.getElementById('logFilter').addEventListener('input', filterLog);
     document.getElementById('workflowName').addEventListener('input', saveAll);
