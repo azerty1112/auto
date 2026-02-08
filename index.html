@@ -39,26 +39,23 @@
     * { box-sizing: border-box; }
     body {
       margin:0;
-      display:flex;
       font-family: "Cairo", "Segoe UI", Arial, sans-serif;
       background: var(--bg);
       color: var(--text);
     }
     #sidebar {
-      width: 50%;
-      min-width: 520px;
-      max-width: 900px;
+      width: min(1100px, 100%);
       background: linear-gradient(180deg, rgba(15,23,42,0.98), rgba(2,6,23,0.98));
-      padding: 20px;
-      height: 100vh;
+      padding: 20px 20px 40px;
+      min-height: 100vh;
       overflow-y: auto;
       border-left: 1px solid var(--card-border);
       box-shadow: var(--shadow);
+      margin: 0 auto;
     }
     body.theme-light #sidebar {
       background: linear-gradient(180deg, rgba(248,250,252,0.98), rgba(241,245,249,0.98));
     }
-    #content { flex:1; background: var(--bg); min-width: 0; }
     .panel-header {
       display:flex;
       align-items:center;
@@ -380,23 +377,22 @@
     .notice strong {
       color: var(--accent);
     }
-    #content-placeholder {
-      display: grid;
-      place-items: center;
-      height: 100vh;
-      padding: 24px;
-      text-align: center;
-      color: var(--muted);
+    .section-tabs {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin: 14px 0 18px;
     }
-    #content-placeholder p {
-      margin: 8px 0 0;
-      font-size: 13px;
+    .section-tabs button {
+      margin: 0;
+      border-radius: 999px;
+      font-size: 12px;
+      padding: 6px 14px;
     }
-    #browser-iframe {
-      width: 100%;
-      height: 100vh;
-      border: 0;
-      background: var(--bg);
+    .section-tabs button.active {
+      background: var(--accent);
+      color: #0b1220;
+      font-weight: 600;
     }
   </style>
 </head>
@@ -418,7 +414,18 @@
       <span class="badge">npm start</span> أو تطبيق Electron.
     </div>
 
-    <div class="card" data-collapsible>
+    <div class="section-tabs" aria-label="تقسيم لوحة التحكم">
+      <button class="active" data-section-tab="all">الكل</button>
+      <button data-section-tab="overview">نظرة عامة</button>
+      <button data-section-tab="browser">المتصفح</button>
+      <button data-section-tab="execution">التنفيذ</button>
+      <button data-section-tab="data">البيانات</button>
+      <button data-section-tab="settings">الإعدادات</button>
+      <button data-section-tab="research">الميزات</button>
+      <button data-section-tab="monitoring">السجل</button>
+    </div>
+
+    <div class="card" data-collapsible data-section="overview">
       <div class="collapse-toggle">
         <h2>نظرة عامة</h2>
         <button class="ghost" onclick="toggleCard(this)">طي/فتح</button>
@@ -451,7 +458,7 @@
       </div>
     </div>
 
-    <div class="card" data-collapsible>
+    <div class="card" data-collapsible data-section="browser">
       <div class="collapse-toggle">
         <h2>مركز المتصفح والماكرو</h2>
         <button class="ghost" onclick="toggleCard(this)">طي/فتح</button>
@@ -461,6 +468,12 @@
         <div class="url-row">
           <input id="targetUrl" placeholder="https://example.com أو example.com">
           <button class="primary" onclick="openTargetUrl()">فتح</button>
+        </div>
+        <div class="inline" style="margin-top:8px;">
+          <button class="primary" onclick="openBrowserWindow()">فتح نافذة المتصفح</button>
+          <button class="ghost" onclick="checkBrowserConnection()">فحص الاتصال</button>
+          <button class="ghost" onclick="reconnectBrowser()">إعادة الربط</button>
+          <span class="pill" id="browserStatus">غير متصل</span>
         </div>
         <div class="split-actions">
           <button class="ghost" onclick="navigateBack()">رجوع</button>
@@ -487,7 +500,7 @@
       </div>
     </div>
 
-    <div class="card" data-collapsible>
+    <div class="card" data-collapsible data-section="settings">
       <div class="collapse-toggle">
         <h2>إعدادات عامة</h2>
         <button class="ghost" onclick="toggleCard(this)">طي/فتح</button>
@@ -517,7 +530,7 @@
       </div>
     </div>
 
-    <div class="card" data-collapsible>
+    <div class="card" data-collapsible data-section="data">
       <div class="collapse-toggle">
         <h2>متغيرات</h2>
         <button class="ghost" onclick="toggleCard(this)">طي/فتح</button>
@@ -533,7 +546,7 @@
       </div>
     </div>
 
-    <div class="card" data-collapsible>
+    <div class="card" data-collapsible data-section="data">
       <div class="collapse-toggle">
         <h2>بيانات الحلقات (JSON أو CSV)</h2>
         <button class="ghost" onclick="toggleCard(this)">طي/فتح</button>
@@ -579,7 +592,7 @@
       </div>
     </div>
 
-    <div class="card" data-collapsible>
+    <div class="card" data-collapsible data-section="execution">
       <div class="collapse-toggle">
         <h2>التحكم في التنفيذ</h2>
         <button class="ghost" onclick="toggleCard(this)">طي/فتح</button>
@@ -605,7 +618,7 @@
       </div>
     </div>
 
-    <div class="card" data-collapsible>
+    <div class="card" data-collapsible data-section="execution">
       <div class="collapse-toggle">
         <h2>إجراءات سريعة</h2>
         <button class="ghost" onclick="toggleCard(this)">طي/فتح</button>
@@ -639,7 +652,7 @@
       </div>
     </div>
 
-    <div class="card" data-collapsible>
+    <div class="card" data-collapsible data-section="research">
       <div class="collapse-toggle">
         <h2>بنك الميزات المستخلصة من تطبيقات الأتمتة</h2>
         <button class="ghost" onclick="toggleCard(this)">طي/فتح</button>
@@ -687,7 +700,7 @@
       </div>
     </div>
 
-    <div class="card" data-collapsible>
+    <div class="card" data-collapsible data-section="execution">
       <div class="collapse-toggle">
         <h2>مسار العمل</h2>
         <button class="ghost" onclick="toggleCard(this)">طي/فتح</button>
@@ -707,7 +720,7 @@
       </div>
     </div>
 
-    <div class="card" data-collapsible>
+    <div class="card" data-collapsible data-section="monitoring">
       <div class="collapse-toggle">
         <h2>السجل</h2>
         <button class="ghost" onclick="toggleCard(this)">طي/فتح</button>
@@ -719,23 +732,13 @@
     </div>
   </div>
 
-  <div id="content">
-    <div id="content-placeholder" class="hidden">
-      <div>
-        <strong>لم يتم فتح أي رابط بعد</strong>
-        <p>يمكنك التصفح هنا، لكن الأتمتة الكاملة تتطلب تشغيل الواجهة عبر Electron.</p>
-      </div>
-    </div>
-    <webview id="browser" src="about:blank" sandbox="allow-scripts allow-same-origin" partition="persist:automation" style="width:100%;height:100vh;"></webview>
-    <iframe id="browser-iframe" class="hidden" title="عرض المتصفح" src="about:blank"></iframe>
-  </div>
-
   <script>
-    const webview = document.getElementById('browser');
-    const browserIframe = document.getElementById('browser-iframe');
-    const contentPlaceholder = document.getElementById('content-placeholder');
     const electronWarning = document.getElementById('electronWarning');
-    const supportsWebview = !!(webview && typeof webview.loadURL === 'function');
+    const browserStatus = document.getElementById('browserStatus');
+    let browserWindow = null;
+    let browserReady = false;
+    let pendingCommands = [];
+    let browserHealthTimer = null;
     let workflow = [];
     let variables = {};
     let data = [];
@@ -1106,68 +1109,103 @@
       return /^https?:\/\//i.test(value) ? value : `https://${value}`;
     }
 
-    function ensureWebviewAvailable() {
-      if (supportsWebview) return true;
-      logMsg('الميزة تتطلب تشغيل الواجهة عبر Electron.');
-      return false;
+    function updateBrowserStatus(label, tone = 'var(--warning)') {
+      browserStatus.textContent = label;
+      browserStatus.style.background = `rgba(56,189,248,0.15)`;
+      browserStatus.style.color = tone;
+    }
+
+    function openBrowserWindow() {
+      if (browserWindow && !browserWindow.closed) {
+        browserWindow.focus();
+        return;
+      }
+      browserReady = false;
+      pendingCommands = [];
+      browserWindow = window.open('browser.html', 'automationBrowser', 'width=1200,height=900');
+      if (!browserWindow) {
+        logMsg('تعذر فتح نافذة المتصفح. تحقق من مانع النوافذ المنبثقة.');
+        return;
+      }
+      updateBrowserStatus('جاري الاتصال', 'var(--warning)');
+      if (!browserHealthTimer) {
+        browserHealthTimer = window.setInterval(() => {
+          if (browserWindow && browserWindow.closed) {
+            browserWindow = null;
+            browserReady = false;
+            updateBrowserStatus('غير متصل', 'var(--danger)');
+          }
+        }, 2000);
+      }
+    }
+
+    function isBrowserAvailable() {
+      if (!browserWindow || browserWindow.closed) {
+        logMsg('نافذة المتصفح غير متصلة. افتحها أولاً.');
+        updateBrowserStatus('غير متصل', 'var(--danger)');
+        return false;
+      }
+      return true;
+    }
+
+    function sendBrowserCommand(command, payload = {}) {
+      if (!isBrowserAvailable()) return false;
+      if (!browserReady) {
+        pendingCommands.push({ command, payload });
+        return true;
+      }
+      browserWindow.postMessage({ type: 'browser-command', command, payload }, '*');
+      return true;
+    }
+
+    function flushPendingCommands() {
+      if (!browserReady || !isBrowserAvailable()) return;
+      pendingCommands.forEach((item) => {
+        browserWindow.postMessage({ type: 'browser-command', command: item.command, payload: item.payload }, '*');
+      });
+      pendingCommands = [];
+    }
+
+    function checkBrowserConnection() {
+      if (!isBrowserAvailable()) return;
+      updateBrowserStatus('جارٍ الفحص', 'var(--warning)');
+      sendBrowserCommand('ping');
+    }
+
+    function reconnectBrowser() {
+      if (browserWindow && !browserWindow.closed) {
+        browserWindow.close();
+      }
+      browserWindow = null;
+      browserReady = false;
+      updateBrowserStatus('غير متصل', 'var(--danger)');
+      openBrowserWindow();
     }
 
     function openTargetUrl() {
       const url = normalizeUrl(targetUrlInput.value.trim());
       if (!url) return;
-      if (supportsWebview) {
-        webview.loadURL(url);
-      } else {
-        browserIframe.src = url;
-        contentPlaceholder.classList.add('hidden');
+      if (!isBrowserAvailable()) {
+        openBrowserWindow();
       }
+      sendBrowserCommand('open', { url });
       logMsg(`تم فتح الرابط: ${url}`);
     }
 
     function reloadTarget() {
-      if (supportsWebview) {
-        webview.reload();
-        return;
-      }
-      if (browserIframe.contentWindow) {
-        browserIframe.contentWindow.location.reload();
-      } else {
-        logMsg('تعذر تحديث الصفحة في وضع المتصفح.');
-      }
+      sendBrowserCommand('reload');
     }
 
     function stopTarget() {
-      if (supportsWebview) {
-        webview.stop();
-        return;
-      }
-      if (browserIframe.contentWindow?.stop) {
-        browserIframe.contentWindow.stop();
-      }
+      sendBrowserCommand('stop');
     }
 
     function navigateBack() {
-      if (supportsWebview) {
-        if (webview.canGoBack()) {
-          webview.goBack();
-        }
-        return;
-      }
-      if (browserIframe.contentWindow) {
-        browserIframe.contentWindow.history.back();
-      }
+      sendBrowserCommand('back');
     }
 
     function navigateForward() {
-      if (supportsWebview) {
-        if (webview.canGoForward()) {
-          webview.goForward();
-        }
-        return;
-      }
-      if (browserIframe.contentWindow) {
-        browserIframe.contentWindow.history.forward();
-      }
+      sendBrowserCommand('forward');
     }
 
     function setMacroStatus(text) {
@@ -1178,160 +1216,45 @@
       lastSelectorEl.textContent = value || '-';
     }
 
-    async function pickSelector() {
-      if (!ensureWebviewAvailable()) return;
-      try {
-        setMacroStatus('التقاط Selector نشط');
-        const selector = await webview.executeJavaScript(`(() => new Promise((resolve) => {
-          const existing = window.__selectorPickerActive;
-          if (existing) return resolve(window.__lastSelector || '');
-          window.__selectorPickerActive = true;
-          const overlay = document.createElement('div');
-          overlay.style.position = 'fixed';
-          overlay.style.border = '2px dashed #38bdf8';
-          overlay.style.zIndex = '2147483647';
-          overlay.style.pointerEvents = 'none';
-          document.body.appendChild(overlay);
-
-          const cssPath = (el) => {
-            if (!el || el.nodeType !== 1) return '';
-            if (el.id) return '#' + CSS.escape(el.id);
-            const parts = [];
-            let element = el;
-            while (element && parts.length < 4 && element.nodeType === 1) {
-              let selector = element.nodeName.toLowerCase();
-              if (element.classList.length) {
-                selector += '.' + [...element.classList].slice(0, 2).map(c => CSS.escape(c)).join('.');
-              }
-              const parent = element.parentElement;
-              if (parent) {
-                const siblings = [...parent.children].filter(child => child.nodeName === element.nodeName);
-                if (siblings.length > 1) {
-                  selector += `:nth-of-type(${siblings.indexOf(element) + 1})`;
-                }
-              }
-              parts.unshift(selector);
-              element = element.parentElement;
-            }
-            return parts.join(' > ');
-          };
-
-          const onHover = (e) => {
-            const rect = e.target.getBoundingClientRect();
-            overlay.style.top = rect.top + 'px';
-            overlay.style.left = rect.left + 'px';
-            overlay.style.width = rect.width + 'px';
-            overlay.style.height = rect.height + 'px';
-          };
-
-          const onClick = (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            const selector = cssPath(e.target);
-            window.__lastSelector = selector;
-            cleanup();
-            resolve(selector);
-          };
-
-          const cleanup = () => {
-            window.__selectorPickerActive = false;
-            document.removeEventListener('mouseover', onHover, true);
-            document.removeEventListener('click', onClick, true);
-            overlay.remove();
-          };
-
-          document.addEventListener('mouseover', onHover, true);
-          document.addEventListener('click', onClick, true);
-        }))()`, true);
-        if (selector) {
-          setLastSelector(selector);
-          navigator.clipboard?.writeText(selector);
-          logMsg(`تم التقاط Selector: ${selector}`);
+    window.addEventListener('message', (event) => {
+      const payload = event.data;
+      if (!payload || typeof payload !== 'object') return;
+      if (payload.type === 'browser-ready') {
+        browserReady = true;
+        updateBrowserStatus('متصل', 'var(--success)');
+        flushPendingCommands();
+        if (browserWindow && !browserWindow.closed) {
+          browserWindow.focus();
+        }
+      }
+      if (payload.type === 'browser-url') {
+        if (payload.url) {
+          targetUrlInput.value = payload.url;
+        }
+      }
+      if (payload.type === 'selector-picked') {
+        if (payload.selector) {
+          setLastSelector(payload.selector);
+          navigator.clipboard?.writeText(payload.selector);
+          logMsg(`تم التقاط Selector: ${payload.selector}`);
         } else {
           setLastSelector('-');
           logMsg('لم يتم التقاط Selector');
         }
-      } catch (error) {
-        logMsg('تعذر تشغيل أداة الالتقاط');
-      } finally {
         setMacroStatus(isMacroRecording ? 'تسجيل ماكرو نشط' : 'غير نشط');
       }
-    }
-
-    async function startMacroRecording() {
-      if (!ensureWebviewAvailable()) return;
-      if (isMacroRecording) return;
-      isMacroRecording = true;
-      setMacroStatus('تسجيل ماكرو نشط');
-      try {
-        await webview.executeJavaScript(`(() => {
-          if (window.__macroRecording) return;
-          window.__macroRecording = true;
-          window.__macroEvents = [];
-          const cssPath = (el) => {
-            if (!el || el.nodeType !== 1) return '';
-            if (el.id) return '#' + CSS.escape(el.id);
-            const parts = [];
-            let element = el;
-            while (element && parts.length < 4 && element.nodeType === 1) {
-              let selector = element.nodeName.toLowerCase();
-              if (element.classList.length) {
-                selector += '.' + [...element.classList].slice(0, 2).map(c => CSS.escape(c)).join('.');
-              }
-              const parent = element.parentElement;
-              if (parent) {
-                const siblings = [...parent.children].filter(child => child.nodeName === element.nodeName);
-                if (siblings.length > 1) {
-                  selector += `:nth-of-type(${siblings.indexOf(element) + 1})`;
-                }
-              }
-              parts.unshift(selector);
-              element = element.parentElement;
-            }
-            return parts.join(' > ');
-          };
-
-          window.__macroHandlers = {
-            click: (e) => {
-              window.__macroEvents.push({ type: 'click', selector: cssPath(e.target), ts: Date.now() });
-            },
-            input: (e) => {
-              window.__macroEvents.push({ type: 'fill', selector: cssPath(e.target), value: e.target.value || '', ts: Date.now() });
-            }
-          };
-          document.addEventListener('click', window.__macroHandlers.click, true);
-          document.addEventListener('input', window.__macroHandlers.input, true);
-        })()`, true);
-        logMsg('تم بدء تسجيل الماكرو من المتصفح');
-      } catch (error) {
-        isMacroRecording = false;
-        setMacroStatus('غير نشط');
-        logMsg('تعذر بدء تسجيل الماكرو');
+      if (payload.type === 'macro-status') {
+        setMacroStatus(payload.status || 'غير نشط');
       }
-    }
-
-    async function stopMacroRecording() {
-      if (!ensureWebviewAvailable()) return;
-      if (!isMacroRecording) return;
-      isMacroRecording = false;
-      setMacroStatus('غير نشط');
-      try {
-        const events = await webview.executeJavaScript(`(() => {
-          const events = window.__macroEvents || [];
-          if (window.__macroHandlers) {
-            document.removeEventListener('click', window.__macroHandlers.click, true);
-            document.removeEventListener('input', window.__macroHandlers.input, true);
-          }
-          window.__macroRecording = false;
-          return events;
-        })()`, true);
+      if (payload.type === 'macro-events') {
+        const events = payload.events || [];
         if (Array.isArray(events) && events.length) {
-          events.forEach(event => {
-            if (event.type === 'click') {
-              workflow.push({ type: 'click', selector: event.selector });
+          events.forEach(eventItem => {
+            if (eventItem.type === 'click') {
+              workflow.push({ type: 'click', selector: eventItem.selector });
             }
-            if (event.type === 'fill') {
-              workflow.push({ type: 'fill', selector: event.selector, value: event.value });
+            if (eventItem.type === 'fill') {
+              workflow.push({ type: 'fill', selector: eventItem.selector, value: eventItem.value });
             }
           });
           renderWorkflow();
@@ -1340,9 +1263,53 @@
         } else {
           logMsg('لم يتم تسجيل خطوات داخل الماكرو');
         }
-      } catch (error) {
-        logMsg('تعذر إنهاء تسجيل الماكرو');
       }
+      if (payload.type === 'browser-pong') {
+        updateBrowserStatus('متصل', 'var(--success)');
+      }
+      if (payload.type === 'browser-closed') {
+        browserWindow = null;
+        browserReady = false;
+        updateBrowserStatus('غير متصل', 'var(--danger)');
+      }
+    });
+
+    const sectionTabs = document.querySelectorAll('[data-section-tab]');
+    function setActiveSection(section) {
+      document.querySelectorAll('.card[data-section]').forEach((card) => {
+        const match = section === 'all' || card.dataset.section === section;
+        card.classList.toggle('hidden', !match);
+      });
+      sectionTabs.forEach((btn) => {
+        btn.classList.toggle('active', btn.dataset.sectionTab === section);
+      });
+      localStorage.sectionTab = section;
+    }
+
+    sectionTabs.forEach((btn) => {
+      btn.addEventListener('click', () => setActiveSection(btn.dataset.sectionTab));
+    });
+
+    async function pickSelector() {
+      if (!isBrowserAvailable()) return;
+      setMacroStatus('التقاط Selector نشط');
+      sendBrowserCommand('pick-selector');
+    }
+
+    async function startMacroRecording() {
+      if (!isBrowserAvailable()) return;
+      if (isMacroRecording) return;
+      isMacroRecording = true;
+      setMacroStatus('تسجيل ماكرو نشط');
+      sendBrowserCommand('start-macro');
+    }
+
+    async function stopMacroRecording() {
+      if (!isBrowserAvailable()) return;
+      if (!isMacroRecording) return;
+      isMacroRecording = false;
+      setMacroStatus('غير نشط');
+      sendBrowserCommand('stop-macro');
     }
 
     function maybeAutoSave() {
@@ -2014,26 +1981,8 @@
     }
 
     // باقي الدوال (execute, recording, picker...) مطورة لتدعم كل الميزات الجديدة.
-    if (supportsWebview) {
-      webview.addEventListener('did-navigate', (event) => {
-        targetUrlInput.value = event.url;
-      });
-
-      webview.addEventListener('did-navigate-in-page', (event) => {
-        if (event.isMainFrame) {
-          targetUrlInput.value = event.url;
-        }
-      });
-    } else {
-      contentPlaceholder.classList.remove('hidden');
+    if (!window.electronAPI) {
       electronWarning.classList.remove('hidden');
-      if (webview) webview.style.display = 'none';
-      browserIframe.classList.remove('hidden');
-      browserIframe.addEventListener('load', () => {
-        if (browserIframe.src && browserIframe.src !== 'about:blank') {
-          targetUrlInput.value = browserIframe.src;
-        }
-      });
     }
 
     document.getElementById('logFilter').addEventListener('input', filterLog);
@@ -2064,6 +2013,10 @@
     document.getElementById('featureSearch').addEventListener('input', renderResearchList);
     document.getElementById('featureCategory').addEventListener('change', renderResearchList);
 
+    const savedSection = localStorage.sectionTab || 'all';
+    const sectionExists = [...sectionTabs].some((btn) => btn.dataset.sectionTab === savedSection);
+    setActiveSection(sectionExists ? savedSection : 'all');
+    updateBrowserStatus('غير متصل', 'var(--danger)');
     renderWorkflow();
     renderVariables();
     renderResearchList();
