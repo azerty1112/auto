@@ -1,8 +1,9 @@
 {
   "name": "auuto",
   "version": "1.0.0",
+  "main": "main.js",
   "scripts": {
-    "start": "node main.js"
+    "start": "electron ."
   },
   "dependencies": {
     "electron": "^40.1.0",
