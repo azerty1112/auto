@@ -27,6 +27,20 @@ function createWindow() {
   });
 
   mainWindow.loadFile('index.html');
+
+  mainWindow.webContents.setWindowOpenHandler(() => ({
+    action: 'allow',
+    overrideBrowserWindowOptions: {
+      width: 1200,
+      height: 900,
+      webPreferences: {
+        preload: path.join(__dirname, 'preload.js'),
+        contextIsolation: true,
+        nodeIntegration: false,
+        webviewTag: true
+      }
+    }
+  }));
 }
 
 ipcMain.handle('set-proxy', async (event, proxy) => {

@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <title>نافذة المتصفح</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #111827;
+      --text: #e5e7eb;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+      --radius: 12px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Cairo", "Segoe UI", Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+    header {
+      padding: 10px 16px;
+      background: var(--panel);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid rgba(148,163,184,0.2);
+    }
+    header small {
+      color: var(--muted);
+    }
+    #content-placeholder {
+      display: grid;
+      place-items: center;
+      height: 100%;
+      text-align: center;
+      color: var(--muted);
+      padding: 24px;
+    }
+    #browser-iframe,
+    #browser {
+      width: 100%;
+      height: 100%;
+      border: 0;
+      flex: 1;
+      background: var(--bg);
+    }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <header>
+    <strong>المتصفح</strong>
+    <small id="browserMode">متصل</small>
+  </header>
+  <div id="content-placeholder">
+    <div>
+      <strong>لم يتم فتح أي رابط بعد</strong>
+      <p>يمكنك التصفح هنا، وتظهر التحديثات في لوحة التحكم.</p>
+    </div>
+  </div>
+  <webview id="browser" src="about:blank" sandbox="allow-scripts allow-same-origin" partition="persist:automation" class="hidden"></webview>
+  <iframe id="browser-iframe" class="hidden" title="عرض المتصفح" src="about:blank"></iframe>
+
+  <script>
+    const webview = document.getElementById('browser');
+    const browserIframe = document.getElementById('browser-iframe');
+    const contentPlaceholder = document.getElementById('content-placeholder');
+    const browserMode = document.getElementById('browserMode');
+    const supportsWebview = !!(webview && typeof webview.loadURL === 'function');
+    let isMacroRecording = false;
+
+    function postToOpener(type, data = {}) {
+      window.opener?.postMessage({ type, ...data }, '*');
+    }
+
+    function showWebview() {
+      if (supportsWebview) {
+        webview.classList.remove('hidden');
+        browserIframe.classList.add('hidden');
+        browserMode.textContent = 'وضع Electron';
+      } else {
+        browserIframe.classList.remove('hidden');
+        webview.classList.add('hidden');
+        browserMode.textContent = 'وضع المتصفح';
+      }
+    }
+
+    function ensureWebviewAvailable() {
+      if (supportsWebview) return true;
+      postToOpener('macro-status', { status: 'يتطلب Electron' });
+      return false;
+    }
+
+    function openTargetUrl(url) {
+      if (!url) return;
+      contentPlaceholder.classList.add('hidden');
+      if (supportsWebview) {
+        webview.loadURL(url);
+      } else {
+        browserIframe.src = url;
+      }
+    }
+
+    function reloadTarget() {
+      if (supportsWebview) {
+        webview.reload();
+        return;
+      }
+      browserIframe.contentWindow?.location.reload();
+    }
+
+    function stopTarget() {
+      if (supportsWebview) {
+        webview.stop();
+        return;
+      }
+      browserIframe.contentWindow?.stop?.();
+    }
+
+    function navigateBack() {
+      if (supportsWebview) {
+        if (webview.canGoBack()) webview.goBack();
+        return;
+      }
+      browserIframe.contentWindow?.history.back();
+    }
+
+    function navigateForward() {
+      if (supportsWebview) {
+        if (webview.canGoForward()) webview.goForward();
+        return;
+      }
+      browserIframe.contentWindow?.history.forward();
+    }
+
+    async function pickSelector() {
+      if (!ensureWebviewAvailable()) {
+        postToOpener('selector-picked', { selector: '' });
+        return;
+      }
+      try {
+        const selector = await webview.executeJavaScript(`(() => new Promise((resolve) => {
+          const existing = window.__selectorPickerActive;
+          if (existing) return resolve(window.__lastSelector || '');
+          window.__selectorPickerActive = true;
+          const overlay = document.createElement('div');
+          overlay.style.position = 'fixed';
+          overlay.style.border = '2px dashed #38bdf8';
+          overlay.style.zIndex = '2147483647';
+          overlay.style.pointerEvents = 'none';
+          document.body.appendChild(overlay);
+
+          const cssPath = (el) => {
+            if (!el || el.nodeType !== 1) return '';
+            if (el.id) return '#' + CSS.escape(el.id);
+            const parts = [];
+            let element = el;
+            while (element && parts.length < 4 && element.nodeType === 1) {
+              let selector = element.nodeName.toLowerCase();
+              if (element.classList.length) {
+                selector += '.' + [...element.classList].slice(0, 2).map(c => CSS.escape(c)).join('.');
+              }
+              const parent = element.parentElement;
+              if (parent) {
+                const siblings = [...parent.children].filter(child => child.nodeName === element.nodeName);
+                if (siblings.length > 1) {
+                  selector += `:nth-of-type(${siblings.indexOf(element) + 1})`;
+                }
+              }
+              parts.unshift(selector);
+              element = element.parentElement;
+            }
+            return parts.join(' > ');
+          };
+
+          const onHover = (e) => {
+            const rect = e.target.getBoundingClientRect();
+            overlay.style.top = rect.top + 'px';
+            overlay.style.left = rect.left + 'px';
+            overlay.style.width = rect.width + 'px';
+            overlay.style.height = rect.height + 'px';
+          };
+
+          const onClick = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const selector = cssPath(e.target);
+            window.__lastSelector = selector;
+            cleanup();
+            resolve(selector);
+          };
+
+          const cleanup = () => {
+            window.__selectorPickerActive = false;
+            document.removeEventListener('mouseover', onHover, true);
+            document.removeEventListener('click', onClick, true);
+            overlay.remove();
+          };
+
+          document.addEventListener('mouseover', onHover, true);
+          document.addEventListener('click', onClick, true);
+        }))()`, true);
+        postToOpener('selector-picked', { selector });
+      } catch (error) {
+        postToOpener('selector-picked', { selector: '' });
+      }
+    }
+
+    async function startMacroRecording() {
+      if (!ensureWebviewAvailable()) return;
+      if (isMacroRecording) return;
+      isMacroRecording = true;
+      postToOpener('macro-status', { status: 'تسجيل ماكرو نشط' });
+      try {
+        await webview.executeJavaScript(`(() => {
+          if (window.__macroRecording) return;
+          window.__macroRecording = true;
+          window.__macroEvents = [];
+          const cssPath = (el) => {
+            if (!el || el.nodeType !== 1) return '';
+            if (el.id) return '#' + CSS.escape(el.id);
+            const parts = [];
+            let element = el;
+            while (element && parts.length < 4 && element.nodeType === 1) {
+              let selector = element.nodeName.toLowerCase();
+              if (element.classList.length) {
+                selector += '.' + [...element.classList].slice(0, 2).map(c => CSS.escape(c)).join('.');
+              }
+              const parent = element.parentElement;
+              if (parent) {
+                const siblings = [...parent.children].filter(child => child.nodeName === element.nodeName);
+                if (siblings.length > 1) {
+                  selector += `:nth-of-type(${siblings.indexOf(element) + 1})`;
+                }
+              }
+              parts.unshift(selector);
+              element = element.parentElement;
+            }
+            return parts.join(' > ');
+          };
+
+          window.__macroHandlers = {
+            click: (e) => {
+              window.__macroEvents.push({ type: 'click', selector: cssPath(e.target), ts: Date.now() });
+            },
+            input: (e) => {
+              window.__macroEvents.push({ type: 'fill', selector: cssPath(e.target), value: e.target.value || '', ts: Date.now() });
+            }
+          };
+          document.addEventListener('click', window.__macroHandlers.click, true);
+          document.addEventListener('input', window.__macroHandlers.input, true);
+        })()`, true);
+      } catch (error) {
+        isMacroRecording = false;
+        postToOpener('macro-status', { status: 'غير نشط' });
+      }
+    }
+
+    async function stopMacroRecording() {
+      if (!ensureWebviewAvailable()) return;
+      if (!isMacroRecording) return;
+      isMacroRecording = false;
+      postToOpener('macro-status', { status: 'غير نشط' });
+      try {
+        const events = await webview.executeJavaScript(`(() => {
+          const events = window.__macroEvents || [];
+          if (window.__macroHandlers) {
+            document.removeEventListener('click', window.__macroHandlers.click, true);
+            document.removeEventListener('input', window.__macroHandlers.input, true);
+          }
+          window.__macroRecording = false;
+          return events;
+        })()`, true);
+        postToOpener('macro-events', { events });
+      } catch (error) {
+        postToOpener('macro-events', { events: [] });
+      }
+    }
+
+    window.addEventListener('message', (event) => {
+      const payload = event.data;
+      if (!payload || payload.type !== 'browser-command') return;
+      const { command, payload: data } = payload;
+      switch (command) {
+        case 'open':
+          openTargetUrl(data.url);
+          break;
+        case 'reload':
+          reloadTarget();
+          break;
+        case 'stop':
+          stopTarget();
+          break;
+        case 'back':
+          navigateBack();
+          break;
+        case 'forward':
+          navigateForward();
+          break;
+        case 'pick-selector':
+          pickSelector();
+          break;
+        case 'start-macro':
+          startMacroRecording();
+          break;
+        case 'stop-macro':
+          stopMacroRecording();
+          break;
+        case 'ping':
+          postToOpener('browser-pong');
+          break;
+        default:
+          break;
+      }
+    });
+
+    if (supportsWebview) {
+      webview.addEventListener('did-navigate', (event) => {
+        postToOpener('browser-url', { url: event.url });
+      });
+      webview.addEventListener('did-navigate-in-page', (event) => {
+        if (event.isMainFrame) {
+          postToOpener('browser-url', { url: event.url });
+        }
+      });
+    } else {
+      browserIframe.addEventListener('load', () => {
+        if (browserIframe.src && browserIframe.src !== 'about:blank') {
+          postToOpener('browser-url', { url: browserIframe.src });
+        }
+      });
+    }
+
+    showWebview();
+    postToOpener('browser-ready');
+    window.addEventListener('beforeunload', () => {
+      postToOpener('browser-closed');
+    });
+  </script>
+</body>
+</html>
