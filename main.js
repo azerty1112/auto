@@ -5,6 +5,7 @@ if (typeof electron === 'string' || !electron || !electron.ipcMain) {
 }
 
 const { app, BrowserWindow, ipcMain, dialog } = electron;
+const { spawn } = require('child_process');
 const path = require('path');
 let robot;
 let mainWindow;
@@ -60,6 +61,21 @@ ipcMain.handle('capture-screenshot', async () => {
   if (filePath) require('fs').writeFileSync(filePath, image.toPNG());
 });
 
+
+ipcMain.handle('exec-python', async (event, code) => {
+  return new Promise((resolve) => {
+    const py = spawn('python3', ['-c', code || 'print("ok")'], { stdio: ['ignore', 'pipe', 'pipe'] });
+    let stdout = '';
+    let stderr = '';
+    py.stdout.on('data', (chunk) => { stdout += chunk.toString(); });
+    py.stderr.on('data', (chunk) => { stderr += chunk.toString(); });
+    py.on('error', (error) => resolve({ ok: false, error: error.message }));
+    py.on('close', (codeExit) => {
+      resolve({ ok: codeExit === 0, code: codeExit, stdout, stderr });
+    });
+  });
+});
+
 ipcMain.handle('robot-action', async (event, action) => {
   if (!robot) return 'robotjs غير مثبت';
   switch(action.type) {
@@ -71,3 +87,12 @@ ipcMain.handle('robot-action', async (event, action) => {
 });
 
 app.whenReady().then(createWindow);
+
+
+app.on('window-all-closed', () => {
+  if (process.platform !== 'darwin') app.quit();
+});
+
+app.on('activate', () => {
+  if (BrowserWindow.getAllWindows().length === 0) createWindow();
+});

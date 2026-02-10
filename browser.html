@@ -126,6 +126,74 @@
       }
     }
 
+
+    async function executeAction(action = {}) {
+      if (!ensureWebviewAvailable()) {
+        reportBrowserError('تنفيذ الإجراء يتطلب webview داخل Electron');
+        return null;
+      }
+
+      const payload = JSON.stringify(action || {}).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+
+      return webview.executeJavaScript(`(() => {
+        const action = JSON.parse('${payload}');
+        const delay = (ms) => new Promise((r) => setTimeout(r, ms));
+        const bySelector = (selector) => document.querySelector(selector);
+
+        const run = async () => {
+          switch (action.type) {
+            case 'click': {
+              const el = bySelector(action.selector);
+              if (!el) throw new Error('Element not found: ' + action.selector);
+              el.click();
+              return { ok: true };
+            }
+            case 'fill': {
+              const el = bySelector(action.selector);
+              if (!el) throw new Error('Element not found: ' + action.selector);
+              el.focus();
+              el.value = action.value || '';
+              el.dispatchEvent(new Event('input', { bubbles: true }));
+              el.dispatchEvent(new Event('change', { bubbles: true }));
+              return { ok: true };
+            }
+            case 'scroll': {
+              window.scrollBy({ top: Number(action.y) || 500, behavior: 'smooth' });
+              return { ok: true };
+            }
+            case 'select': {
+              const el = bySelector(action.selector);
+              if (!el) throw new Error('Element not found: ' + action.selector);
+              el.value = action.value || '';
+              el.dispatchEvent(new Event('change', { bubbles: true }));
+              return { ok: true };
+            }
+            case 'waitFor': {
+              const timeout = Number(action.timeout) || 10000;
+              const started = Date.now();
+              while (Date.now() - started < timeout) {
+                if (bySelector(action.selector)) return { ok: true };
+                await delay(100);
+              }
+              throw new Error('Timeout waiting for ' + action.selector);
+            }
+            case 'extract': {
+              const el = bySelector(action.selector);
+              if (!el) throw new Error('Element not found: ' + action.selector);
+              return { ok: true, value: (el.value || el.textContent || '').trim() };
+            }
+            case 'js': {
+              return { ok: true, value: eval(action.code || '') };
+            }
+            default:
+              return { ok: false, message: 'Unsupported action type' };
+          }
+        };
+
+        return run();
+      })()`, true);
+    }
+
     function stopTarget() {
       try {
         if (supportsWebview) {
@@ -342,6 +410,18 @@
           break;
         case 'stop-macro':
           stopMacroRecording();
+          break;
+        case 'execute-action':
+          executeAction(data.action || {}).then((result) => {
+            if (data.action?.type === 'extract' && data.action?.varName) {
+              postToOpener('macro-events', { events: [{ type: 'extract', key: data.action.varName, value: result?.value ?? '' }] });
+            }
+            if (result && result.ok === false && result.message) {
+              postToOpener('browser-info', { message: result.message });
+            }
+          }).catch((error) => {
+            reportBrowserError(error?.message || 'تعذر تنفيذ الإجراء داخل المتصفح');
+          });
           break;
         case 'ping':
           postToOpener('browser-pong');
