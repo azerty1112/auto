@@ -78,6 +78,10 @@
       window.opener?.postMessage({ type, ...data }, '*');
     }
 
+    function reportBrowserError(message) {
+      postToOpener('browser-error', { message });
+    }
+
     function showWebview() {
       if (supportsWebview) {
         webview.classList.remove('hidden');
@@ -99,43 +103,71 @@
     function openTargetUrl(url) {
       if (!url) return;
       contentPlaceholder.classList.add('hidden');
-      if (supportsWebview) {
-        webview.loadURL(url);
-      } else {
-        browserIframe.src = url;
+      try {
+        if (supportsWebview) {
+          webview.loadURL(url);
+        } else {
+          browserIframe.src = url;
+        }
+      } catch (error) {
+        reportBrowserError('تعذر فتح الرابط داخل نافذة المتصفح');
       }
     }
 
     function reloadTarget() {
-      if (supportsWebview) {
-        webview.reload();
-        return;
+      try {
+        if (supportsWebview) {
+          webview.reload();
+          return;
+        }
+        browserIframe.contentWindow?.location.reload();
+      } catch (error) {
+        reportBrowserError('تعذر إعادة تحميل الصفحة الحالية');
       }
-      browserIframe.contentWindow?.location.reload();
     }
 
     function stopTarget() {
-      if (supportsWebview) {
-        webview.stop();
-        return;
+      try {
+        if (supportsWebview) {
+          webview.stop();
+          return;
+        }
+        browserIframe.contentWindow?.stop?.();
+      } catch (error) {
+        reportBrowserError('تعذر إيقاف التحميل في الصفحة الحالية');
       }
-      browserIframe.contentWindow?.stop?.();
     }
 
     function navigateBack() {
-      if (supportsWebview) {
-        if (webview.canGoBack()) webview.goBack();
-        return;
+      try {
+        if (supportsWebview) {
+          if (webview.canGoBack()) {
+            webview.goBack();
+          } else {
+            postToOpener('browser-info', { message: 'لا توجد صفحة سابقة للرجوع إليها.' });
+          }
+          return;
+        }
+        browserIframe.contentWindow?.history.back();
+      } catch (error) {
+        reportBrowserError('تعذر الرجوع للصفحة السابقة');
       }
-      browserIframe.contentWindow?.history.back();
     }
 
     function navigateForward() {
-      if (supportsWebview) {
-        if (webview.canGoForward()) webview.goForward();
-        return;
+      try {
+        if (supportsWebview) {
+          if (webview.canGoForward()) {
+            webview.goForward();
+          } else {
+            postToOpener('browser-info', { message: 'لا توجد صفحة لاحقة للتقدم إليها.' });
+          }
+          return;
+        }
+        browserIframe.contentWindow?.history.forward();
+      } catch (error) {
+        reportBrowserError('تعذر التقدم إلى الصفحة التالية');
       }
-      browserIframe.contentWindow?.history.forward();
     }
 
     async function pickSelector() {
@@ -169,7 +201,7 @@
               if (parent) {
                 const siblings = [...parent.children].filter(child => child.nodeName === element.nodeName);
                 if (siblings.length > 1) {
-                  selector += `:nth-of-type(${siblings.indexOf(element) + 1})`;
+                  selector += ':nth-of-type(' + (siblings.indexOf(element) + 1) + ')';
                 }
               }
               parts.unshift(selector);
@@ -235,7 +267,7 @@
               if (parent) {
                 const siblings = [...parent.children].filter(child => child.nodeName === element.nodeName);
                 if (siblings.length > 1) {
-                  selector += `:nth-of-type(${siblings.indexOf(element) + 1})`;
+                  selector += ':nth-of-type(' + (siblings.indexOf(element) + 1) + ')';
                 }
               }
               parts.unshift(selector);
