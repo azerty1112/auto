@@ -910,6 +910,9 @@
             if (eventItem.type === 'fill') {
               workflow.push({ type: 'fill', selector: eventItem.selector, value: eventItem.value });
             }
+            if (eventItem.type === 'extract' && eventItem.key) {
+              variables[eventItem.key] = eventItem.value ?? '';
+            }
           });
           renderWorkflow();
           saveAll();
@@ -1193,7 +1196,7 @@
       return current;
     }
 
-    function renderWorkflow(actions = workflow, container = document.getElementById('workflow-list'), path = [], subKey = 'actions') {
+    function renderWorkflow(actions = workflow, container = document.getElementById('workflow-list'), path = []) {
       container.innerHTML = '';
       actions.forEach((action, i) => {
         if (actionFilter.value && !action.type?.toLowerCase().includes(actionFilter.value.toLowerCase())) {
@@ -1203,11 +1206,12 @@
         const div = document.createElement('div');
         div.className = 'action';
         div.draggable = true;
-        div.ondragstart = e => dragStart(e, JSON.stringify(currentPath));
+        div.ondragstart = (e) => dragStart(e, JSON.stringify(currentPath));
         div.ondragover = dragOver;
         div.ondragleave = dragLeave;
-        div.ondrop = e => dropAction(e, currentPath);
+        div.ondrop = (e) => dropAction(e, currentPath);
 
+        const actionType = action.type || 'navigate';
         const typeSelect = `<select data-path='${JSON.stringify(currentPath)}' onchange="updateActionType(this)">
           <option value="navigate">Navigate</option>
           <option value="wait">Wait</option>
@@ -1223,33 +1227,69 @@
           <option value="loop">Loop</option>
           <option value="if">If Condition</option>
         </select>`;
-        div.innerHTML = typeSelect + ` <button onclick="moveUp('${JSON.stringify(currentPath)}')">↑</button><button onclick="moveDown('${JSON.stringify(currentPath)}')">↓</button><button onclick="removeAction('${JSON.stringify(currentPath)}')">حذف</button>`;
+        div.innerHTML = `${typeSelect}
+          <button onclick="moveUp('${JSON.stringify(currentPath)}')">↑</button>
+          <button onclick="moveDown('${JSON.stringify(currentPath)}')">↓</button>
+          <button onclick="removeAction('${JSON.stringify(currentPath)}')">حذف</button>`;
 
-        // باقي الحقول حسب النوع...
-        // (الكود طويل، لكن كل نوع له حقوله الخاصة مع Pick للـ selector ودعم {{var}})
+        const editor = document.createElement('div');
+        editor.style.marginTop = '8px';
 
+        if (actionType === 'navigate') {
+          editor.innerHTML = `<label>الرابط</label><input placeholder="https://example.com" value="${action.url || ''}" onchange="updateActionField('${JSON.stringify(currentPath)}','url',this.value)">`;
+        } else if (actionType === 'wait') {
+          editor.innerHTML = `<label>المدة (ms)</label><input type="number" min="0" value="${action.ms ?? globalDelay}" onchange="updateActionField('${JSON.stringify(currentPath)}','ms',Number(this.value)||0)">`;
+        } else if (['click','fill','waitFor','extract','select'].includes(actionType)) {
+          const valueInput = actionType === 'fill' ? `<label>القيمة</label><input value="${action.value || ''}" onchange="updateActionField('${JSON.stringify(currentPath)}','value',this.value)">` : '';
+          const varInput = actionType === 'extract' ? `<label>اسم المتغير</label><input value="${action.varName || ''}" onchange="updateActionField('${JSON.stringify(currentPath)}','varName',this.value)">` : '';
+          editor.innerHTML = `<label>Selector</label><input value="${action.selector || ''}" onchange="updateActionField('${JSON.stringify(currentPath)}','selector',this.value)">${valueInput}${varInput}`;
+        } else if (actionType === 'scroll') {
+          editor.innerHTML = `<label>المسافة العمودية</label><input type="number" value="${action.y ?? 500}" onchange="updateActionField('${JSON.stringify(currentPath)}','y',Number(this.value)||0)">`;
+        } else if (actionType === 'js') {
+          editor.innerHTML = `<label>كود JavaScript</label><textarea rows="4" onchange="updateActionField('${JSON.stringify(currentPath)}','code',this.value)">${action.code || ''}</textarea>`;
+        } else if (actionType === 'python') {
+          editor.innerHTML = `<label>كود Python</label><textarea rows="4" onchange="updateActionField('${JSON.stringify(currentPath)}','code',this.value)">${action.code || ''}</textarea>`;
+        } else if (actionType === 'robot') {
+          editor.innerHTML = `<label>نوع الحركة</label><select onchange="updateActionField('${JSON.stringify(currentPath)}','robotType',this.value)">
+            <option value="key" ${action.robotType === 'key' ? 'selected' : ''}>Keyboard</option>
+            <option value="mouseMove" ${action.robotType === 'mouseMove' ? 'selected' : ''}>Mouse Move</option>
+            <option value="mouseClick" ${action.robotType === 'mouseClick' ? 'selected' : ''}>Mouse Click</option>
+          </select>
+          <label>المحتوى (JSON)</label><input value="${action.robotPayload || ''}" onchange="updateActionField('${JSON.stringify(currentPath)}','robotPayload',this.value)">`;
+        } else if (actionType === 'loop') {
+          editor.innerHTML = `<label>عدد التكرارات</label><input type="number" min="1" value="${action.times || 1}" onchange="updateActionField('${JSON.stringify(currentPath)}','times',Number(this.value)||1)">`;
+        } else if (actionType === 'if') {
+          editor.innerHTML = `<label>شرط JS (يعيد true/false)</label><input value="${action.condition || ''}" onchange="updateActionField('${JSON.stringify(currentPath)}','condition',this.value)">`;
+        }
+
+        div.appendChild(editor);
         container.appendChild(div);
 
-        if (['loop', 'if'].includes(action.type)) {
+        if (actionType === 'loop') {
           const sub = document.createElement('div');
           sub.className = 'sub-actions';
-          sub.ondrop = e => dropAction(e, [...currentPath, 'actions']);
-          sub.ondragover = dragOver;
-          sub.ondragleave = dragLeave;
           container.appendChild(sub);
-          renderWorkflow(action.actions || [], sub, currentPath, 'actions');
-          if (action.type === 'if') {
-            const thenSub = document.createElement('div');
-            thenSub.className = 'sub-actions';
-            container.appendChild(document.createTextNode('Then:'));
-            container.appendChild(thenSub);
-            renderWorkflow(action.thenActions || [], thenSub, currentPath, 'thenActions');
-            const elseSub = document.createElement('div');
-            elseSub.className = 'sub-actions';
-            container.appendChild(document.createTextNode('Else:'));
-            container.appendChild(elseSub);
-            renderWorkflow(action.elseActions || [], elseSub, currentPath, 'elseActions');
-          }
+          renderWorkflow(action.actions || [], sub, currentPath);
+        }
+
+        if (actionType === 'if') {
+          const thenLabel = document.createElement('p');
+          thenLabel.className = 'small muted';
+          thenLabel.textContent = 'Then';
+          container.appendChild(thenLabel);
+          const thenSub = document.createElement('div');
+          thenSub.className = 'sub-actions';
+          container.appendChild(thenSub);
+          renderWorkflow(action.thenActions || [], thenSub, [...currentPath, 'thenActions']);
+
+          const elseLabel = document.createElement('p');
+          elseLabel.className = 'small muted';
+          elseLabel.textContent = 'Else';
+          container.appendChild(elseLabel);
+          const elseSub = document.createElement('div');
+          elseSub.className = 'sub-actions';
+          container.appendChild(elseSub);
+          renderWorkflow(action.elseActions || [], elseSub, [...currentPath, 'elseActions']);
         }
       });
 
@@ -1445,6 +1485,278 @@
       document.getElementById('globalDelay').value = value;
       updateStats();
       maybeAutoSave();
+    }
+
+
+    function getArrayByPath(path) {
+      if (!Array.isArray(path) || path.length === 0) return workflow;
+      let current = workflow;
+      for (const token of path) {
+        if (typeof token === 'string') {
+          current = current[token] || [];
+          continue;
+        }
+        const item = current[token];
+        if (!item) return [];
+        current = item.actions || [];
+      }
+      return current;
+    }
+
+    function getNodeAndParent(path) {
+      const arrPath = path.slice(0, -1);
+      const index = path[path.length - 1];
+      const parentArray = getArrayByPath(arrPath);
+      return { parentArray, index, node: parentArray[index] };
+    }
+
+    function buildDefaultAction(type = 'navigate') {
+      const base = { type };
+      if (type === 'navigate') base.url = '';
+      if (type === 'wait') base.ms = globalDelay;
+      if (type === 'click') base.selector = '';
+      if (type === 'fill') Object.assign(base, { selector: '', value: '' });
+      if (type === 'scroll') base.y = 500;
+      if (type === 'select') Object.assign(base, { selector: '', value: '' });
+      if (type === 'waitFor') Object.assign(base, { selector: '', timeout: 10000 });
+      if (type === 'extract') Object.assign(base, { selector: '', varName: '' });
+      if (type === 'js' || type === 'python') base.code = '';
+      if (type === 'robot') Object.assign(base, { robotType: 'key', robotPayload: '{"key":"enter"}' });
+      if (type === 'loop') Object.assign(base, { times: 1, actions: [] });
+      if (type === 'if') Object.assign(base, { condition: 'true', thenActions: [], elseActions: [] });
+      return base;
+    }
+
+    function addNewAction(path = []) {
+      const target = getArrayByPath(path);
+      target.push(buildDefaultAction('navigate'));
+      renderWorkflow();
+      maybeAutoSave();
+    }
+
+    function parsePath(pathString) {
+      try {
+        return JSON.parse(pathString);
+      } catch {
+        return [];
+      }
+    }
+
+    function removeAction(pathString) {
+      const path = parsePath(pathString);
+      const { parentArray, index } = getNodeAndParent(path);
+      parentArray.splice(index, 1);
+      renderWorkflow();
+      maybeAutoSave();
+    }
+
+    function moveUp(pathString) {
+      const path = parsePath(pathString);
+      const { parentArray, index } = getNodeAndParent(path);
+      if (index <= 0) return;
+      [parentArray[index - 1], parentArray[index]] = [parentArray[index], parentArray[index - 1]];
+      renderWorkflow();
+      maybeAutoSave();
+    }
+
+    function moveDown(pathString) {
+      const path = parsePath(pathString);
+      const { parentArray, index } = getNodeAndParent(path);
+      if (index >= parentArray.length - 1) return;
+      [parentArray[index + 1], parentArray[index]] = [parentArray[index], parentArray[index + 1]];
+      renderWorkflow();
+      maybeAutoSave();
+    }
+
+    function updateActionType(selectEl) {
+      const path = parsePath(selectEl.dataset.path);
+      const { parentArray, index } = getNodeAndParent(path);
+      parentArray[index] = buildDefaultAction(selectEl.value);
+      renderWorkflow();
+      maybeAutoSave();
+    }
+
+    function updateActionField(pathString, key, value) {
+      const path = parsePath(pathString);
+      const { node } = getNodeAndParent(path);
+      if (!node) return;
+      node[key] = value;
+      maybeAutoSave();
+      updateStats();
+    }
+
+    function exportWorkflow() {
+      document.getElementById('jsonIO').value = JSON.stringify(workflow, null, 2);
+      logMsg('تم تصدير المسار إلى حقل JSON');
+    }
+
+    function importWorkflow() {
+      try {
+        const parsed = JSON.parse(document.getElementById('jsonIO').value || '[]');
+        workflow = Array.isArray(parsed) ? parsed : [];
+        renderWorkflow();
+        saveAll();
+        logMsg('تم استيراد المسار');
+      } catch (error) {
+        logMsg('تعذر استيراد JSON');
+      }
+    }
+
+    async function execBrowserAction(action) {
+      return sendBrowserCommand('execute-action', { action });
+    }
+
+    async function runSingleAction(action, row = null) {
+      const waitMs = Number(document.getElementById('globalDelay').value) || globalDelay;
+      const resolved = JSON.parse(JSON.stringify(action || {}));
+      if (resolved.value) resolved.value = replaceVars(String(resolved.value));
+      if (resolved.url) resolved.url = replaceVars(String(resolved.url));
+      if (row && typeof row === 'object') {
+        Object.keys(row).forEach((key) => {
+          resolved.value = typeof resolved.value === 'string' ? resolved.value.replaceAll(`{{row.${key}}}`, String(row[key])) : resolved.value;
+          resolved.url = typeof resolved.url === 'string' ? resolved.url.replaceAll(`{{row.${key}}}`, String(row[key])) : resolved.url;
+        });
+      }
+
+      switch (resolved.type) {
+        case 'navigate':
+          sendBrowserCommand('open', { url: normalizeUrl(resolved.url) });
+          break;
+        case 'wait':
+          await new Promise((r) => setTimeout(r, Number(resolved.ms) || waitMs));
+          break;
+        case 'click':
+        case 'fill':
+        case 'scroll':
+        case 'select':
+        case 'waitFor':
+        case 'extract':
+        case 'js':
+          execBrowserAction(resolved);
+          break;
+        case 'python':
+          if (!window.electronAPI?.execPython) {
+            logMsg('تنفيذ Python غير متوفر في هذا الوضع');
+          } else {
+            await window.electronAPI.execPython(resolved.code || 'print("ok")');
+          }
+          break;
+        case 'robot': {
+          let payload = {};
+          try { payload = JSON.parse(resolved.robotPayload || '{}'); } catch {}
+          window.electronAPI?.robotAction({ type: resolved.robotType || 'key', ...payload });
+          break;
+        }
+        case 'loop': {
+          const times = Math.max(1, Number(resolved.times) || 1);
+          for (let i = 0; i < times; i++) {
+            // eslint-disable-next-line no-await-in-loop
+            await runActionList(resolved.actions || [], row);
+            if (stopRequested) break;
+          }
+          break;
+        }
+        case 'if': {
+          let ok = false;
+          try {
+            ok = Boolean(Function(`return (${resolved.condition || 'false'})`)());
+          } catch {
+            ok = false;
+          }
+          await runActionList(ok ? (resolved.thenActions || []) : (resolved.elseActions || []), row);
+          break;
+        }
+        default:
+          break;
+      }
+
+      if (waitMs > 0 && resolved.type !== 'wait') {
+        await new Promise((r) => setTimeout(r, waitMs));
+      }
+    }
+
+    async function runActionList(actions, row = null) {
+      for (const action of actions) {
+        if (stopRequested) break;
+        while (isPaused) {
+          // eslint-disable-next-line no-await-in-loop
+          await new Promise((r) => setTimeout(r, 150));
+        }
+        // eslint-disable-next-line no-await-in-loop
+        await runSingleAction(action, row);
+        if (stepRequested) {
+          stepRequested = false;
+          isPaused = true;
+        }
+      }
+    }
+
+    function computeRowsToRun() {
+      const start = Math.max(0, Number(document.getElementById('loopStartIndex').value) || 0);
+      const maxItems = Number(document.getElementById('loopMaxItems').value);
+      let rows = Array.isArray(data) ? [...data] : [];
+      if (document.getElementById('loopShuffle').checked) {
+        rows = rows.sort(() => Math.random() - 0.5);
+      }
+      const mode = document.getElementById('loopMode').value;
+      if (mode === 'reverse') rows = rows.reverse();
+      if (mode === 'random') rows = rows.sort(() => Math.random() - 0.5);
+      const sliced = rows.slice(start, Number.isFinite(maxItems) && maxItems > 0 ? start + maxItems : undefined);
+      return sliced.length ? sliced : [null];
+    }
+
+    async function runWorkflow() {
+      if (isRunning) return;
+      if (!workflow.length) {
+        logMsg('لا يوجد إجراءات في المسار');
+        return;
+      }
+      stopRequested = false;
+      isPaused = false;
+      isRunning = true;
+      const rows = computeRowsToRun();
+      let ok = 0;
+      let failed = 0;
+      for (const row of rows) {
+        try {
+          // eslint-disable-next-line no-await-in-loop
+          await runActionList(workflow, row);
+          ok += 1;
+        } catch (error) {
+          failed += 1;
+          logMsg(`خطأ أثناء التنفيذ: ${error.message || error}`);
+          if (!document.getElementById('loopSkipErrors').checked) {
+            break;
+          }
+        }
+        if (stopRequested) break;
+      }
+      isRunning = false;
+      successRate = Math.max(0, Math.round((ok / Math.max(1, ok + failed)) * 100));
+      saveAll();
+      updateStats();
+      setStatus(stopRequested ? 'تم الإيقاف' : 'مكتمل', stopRequested ? 'var(--danger)' : 'var(--success)');
+      logMsg(`انتهى التنفيذ: نجاح ${ok} | فشل ${failed}`);
+    }
+
+    function pauseWorkflow() {
+      if (!isRunning) return;
+      isPaused = !isPaused;
+      setStatus(isPaused ? 'متوقف مؤقتاً' : 'قيد التشغيل', isPaused ? 'var(--warning)' : 'var(--success)');
+    }
+
+    function stopWorkflow() {
+      stopRequested = true;
+      isPaused = false;
+      isRunning = false;
+    }
+
+    function stepWorkflow() {
+      if (!isRunning) {
+        handleRun();
+      }
+      isPaused = false;
+      stepRequested = true;
     }
 
 
