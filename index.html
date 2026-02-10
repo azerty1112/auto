@@ -192,6 +192,10 @@
     #log p { margin: 0 0 8px; font-size: 12px; }
     .section-actions { display:flex; gap: 8px; flex-wrap: wrap; }
     .muted { color: var(--muted); }
+    #loopRange {
+      color: var(--success);
+      font-weight: 700;
+    }
     .divider {
       height: 1px;
       background: var(--card-border);
@@ -631,23 +635,6 @@
         <button class="ghost" onclick="resetAll()">إعادة ضبط</button>
         <button class="ghost" onclick="toggleTheme()">تبديل الثيم</button>
         <button class="ghost" onclick="copySummary()">نسخ الملخص</button>
-      </div>
-      <div class="divider-light"></div>
-      <div class="list">
-        <div class="list-item">
-          <div>
-            <strong>قالب تسجيل دخول</strong>
-            <div class="hint">Navigate → Fill → Click</div>
-          </div>
-          <button class="ghost" onclick="addTemplate('login')">إضافة</button>
-        </div>
-        <div class="list-item">
-          <div>
-            <strong>قالب جمع بيانات</strong>
-            <div class="hint">Navigate → Extract → Export</div>
-          </div>
-          <button class="ghost" onclick="addTemplate('scrape')">إضافة</button>
-        </div>
       </div>
       </div>
     </div>
@@ -1188,24 +1175,34 @@
       if (!isBrowserAvailable()) {
         openBrowserWindow();
       }
-      sendBrowserCommand('open', { url });
-      logMsg(`تم فتح الرابط: ${url}`);
+      const sent = sendBrowserCommand('open', { url });
+      if (sent) {
+        logMsg(`تم إرسال أمر فتح الرابط: ${url}`);
+      }
     }
 
     function reloadTarget() {
-      sendBrowserCommand('reload');
+      if (sendBrowserCommand('reload')) {
+        logMsg('تم إرسال أمر إعادة التحميل');
+      }
     }
 
     function stopTarget() {
-      sendBrowserCommand('stop');
+      if (sendBrowserCommand('stop')) {
+        logMsg('تم إرسال أمر إيقاف التحميل');
+      }
     }
 
     function navigateBack() {
-      sendBrowserCommand('back');
+      if (sendBrowserCommand('back')) {
+        logMsg('تم إرسال أمر الرجوع');
+      }
     }
 
     function navigateForward() {
-      sendBrowserCommand('forward');
+      if (sendBrowserCommand('forward')) {
+        logMsg('تم إرسال أمر التقدم');
+      }
     }
 
     function setMacroStatus(text) {
@@ -1266,6 +1263,13 @@
       }
       if (payload.type === 'browser-pong') {
         updateBrowserStatus('متصل', 'var(--success)');
+      }
+      if (payload.type === 'browser-error') {
+        logMsg(`خطأ من نافذة المتصفح: ${payload.message || 'خطأ غير معروف'}`);
+        updateBrowserStatus('خطأ', 'var(--danger)');
+      }
+      if (payload.type === 'browser-info') {
+        if (payload.message) logMsg(payload.message);
       }
       if (payload.type === 'browser-closed') {
         browserWindow = null;
@@ -1746,27 +1750,6 @@
     function toggleTheme() {
       const isLight = document.body.classList.toggle('theme-light');
       localStorage.theme = isLight ? 'light' : 'dark';
-    }
-
-    function addTemplate(type) {
-      if (type === 'login') {
-        workflow.push(
-          { type: 'navigate', url: 'https://example.com/login' },
-          { type: 'fill', selector: '#username', value: '{{username}}' },
-          { type: 'fill', selector: '#password', value: '{{password}}' },
-          { type: 'click', selector: 'button[type=\"submit\"]' }
-        );
-      }
-      if (type === 'scrape') {
-        workflow.push(
-          { type: 'navigate', url: 'https://example.com' },
-          { type: 'extract', selector: '.item', attr: 'text' },
-          { type: 'js', code: 'console.log(\"Exporting data\")' }
-        );
-      }
-      renderWorkflow();
-      saveAll();
-      logMsg('تمت إضافة قالب جاهز');
     }
 
     function exportSettings() {
